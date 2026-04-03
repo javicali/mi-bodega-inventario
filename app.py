@@ -1,3 +1,4 @@
+
 import streamlit as st
 import json
 import os
@@ -26,26 +27,34 @@ st.set_page_config(page_title="Bodega Pro", layout="wide")
 st.markdown("""<style>
     .block-container {padding-top: 1rem;}
     .stButton>button {padding: 0.2rem 0.5rem; width: 100%;}
-    .stAlert {padding: 0.5rem;}
 </style>""", unsafe_allow_html=True)
 
 inv = cargar_json(ARCHIVO_DB, {})
-config = cargar_json(ARCHIVO_CONF, {"usuarios": {"ADMIN": "admin123"}, "depositos": ["SETAR"], "marcas": ["IRUN"]})
+config = cargar_json(ARCHIVO_CONF, {"usuarios": {"ADMIN": "admin123"}, "depositos": ["SETAR"], "marcas": ["IRUN", "BOOTY", "LEONESA", "YD", "ELT", "HHP", "TMILL"]})
 logs = cargar_json(ARCHIVO_LOG, [])
 
-if 'mostrar_panel' not in st.session_state: st.session_state.mostrar_panel = False
-if 'edit_mode' not in st.session_state: st.session_state.edit_mode = False
+if 'mostrar_panel' not in st.session_state: st.session_state.edit_mode = False # Para control de navegación
+if 'ver_stock_general' not in st.session_state: st.session_state.ver_stock_general = False
 
-# --- FUNCIÓN TARJETA ---
-def mostrar_item(id_f, info, sufijo, modo_edicion=False):
+# --- FUNCIÓN TARJETA (LECTURA) ---
+def mostrar_item_lectura(id_f, info):
     cod_l = id_f.split("_", 1)[1] if "_" in id_f else id_f
     with st.container(border=True):
-        c1, c2, c3 = st.columns([1.5, 1, 2])
+        c1, c2 = st.columns([2, 1])
+        c1.markdown(f"**{cod_l}**\n<small>{info['marca']} | {info['deposito']}</small>", unsafe_allow_html=True)
+        txt_u = "caja" if info['stock'] == 1 else "cajas"
+        c2.markdown(f"📦 **{info['stock']}**\n<small>{txt_u}</small>", unsafe_allow_html=True)
+
+# --- FUNCIÓN TARJETA (EDICIÓN) ---
+def mostrar_item_edicion(id_f, info, sufijo):
+    cod_l = id_f.split("_", 1)[1] if "_" in id_f else id_f
+    with st.container(border=True):
+        c1, c2, c3 = st.columns([1.5, 1, 2.2])
         c1.markdown(f"**{cod_l}**\n<small>{info['marca']} | {info['deposito']}</small>", unsafe_allow_html=True)
         txt_u = "caja" if info['stock'] == 1 else "cajas"
         c2.markdown(f"📦 **{info['stock']}**\n<small>{txt_u}</small>", unsafe_allow_html=True)
         
-        if modo_edicion and st.session_state.edit_mode:
+        if st.session_state.get('edit_mode', False):
             with c3:
                 cant = st.number_input("n", min_value=1, value=1, key=f"n_{sufijo}_{id_f}", label_visibility="collapsed")
                 col_btn = st.columns(3)
@@ -55,7 +64,7 @@ def mostrar_item(id_f, info, sufijo, modo_edicion=False):
 
                 estado = st.session_state.get(f"conf_{sufijo}_{id_f}")
                 if estado:
-                    if st.button("CONFIRMAR OK", key=f"ok_{sufijo}_{id_f}", type="primary"):
+                    if st.button("OK?", key=f"ok_{sufijo}_{id_f}", type="primary"):
                         if estado == "S": inv[id_f]["stock"] += cant
                         elif estado == "R": inv[id_f]["stock"] -= cant
                         elif estado == "B": del inv[id_f]
@@ -64,86 +73,91 @@ def mostrar_item(id_f, info, sufijo, modo_edicion=False):
                         del st.session_state[f"conf_{sufijo}_{id_f}"]
                         st.rerun()
 
-# --- LÓGICA DE PÁGINAS ---
+# --- INTERFAZ PRINCIPAL ---
 
-if not st.session_state.mostrar_panel:
-    # ================= PÁGINA DE CONSULTA (PÚBLICA) =================
-    st.title("🔍 Consulta de Stock")
+if not st.session_state.get('mostrar_panel', False):
+    st.title("🏢 Sistema de Bodega")
     
-    # 1. BUSCADOR POR CÓDIGO
-    c_p1, c_p2 = st.columns([4, 1])
-    with c_p1:
-        busq_p = st.text_input("Buscar código específico:", placeholder="Escriba aquí...").upper().strip()
-    with c_p2:
+    # 1. BUSCADOR RÁPIDO
+    st.subheader("🔍 Consulta Rápida")
+    c1, c2 = st.columns([4, 1])
+    with c1:
+        busq = st.text_input("Ingrese código:", placeholder="Escriba código...").upper().strip()
+    with c2:
         st.write("##")
-        btn_lupa = st.button("🔍 Buscar")
-
-    if busq_p:
-        encontrados = {k: v for k, v in inv.items() if (k.split("_", 1)[1] if "_" in k else k) == busq_p}
+        btn_l = st.button("🔍 Buscar")
+    
+    if busq:
+        encontrados = {k: v for k, v in inv.items() if (k.split("_", 1)[1] if "_" in k else k) == busq}
         if encontrados:
             for id_f, info in encontrados.items():
-                txt_c = "caja" if info['stock'] == 1 else "cajas"
-                st.success(f"✅ **{busq_p}** | {info['marca']} | Depósito: **{info['deposito']}** | Stock: **{info['stock']} {txt_c}**")
-        else:
-            st.error("❌ Código no encontrado.")
-    
-    st.divider()
-    
-    # 2. VER TODO EL INVENTARIO (LECTURA)
-    st.subheader("📦 Vista General por Depósito")
-    dep_v = st.selectbox("Seleccione Depósito para ver todo:", config["depositos"])
-    tab_m = st.tabs(config["marcas"])
-    for i, m_nombre in enumerate(config["marcas"]):
-        with tab_m[i]:
-            items_v = {k: v for k, v in inv.items() if v['marca'] == m_nombre and v['deposito'] == dep_v and v['stock'] > 0}
-            if items_v:
-                for id_f, info in sorted(items_v.items()):
-                    mostrar_item(id_f, info, "view", modo_edicion=False)
-            else:
-                st.write("No hay stock en esta marca.")
+                st.info(f"✅ **{busq}** ({info['marca']}) en **{info['deposito']}**: {info['stock']} cajas")
+        elif btn_l: st.error("No existe.")
 
-    # 3. BOTÓN DISCRETO AL FINAL
+    st.divider()
+
+    # 2. VISTA GENERAL CON BOTÓN
+    st.subheader("📦 Inventario General")
+    if not st.session_state.ver_stock_general:
+        if st.button("👁️ VER TODO EL STOCK", type="secondary"):
+            st.session_state.ver_stock_general = True
+            st.rerun()
+    else:
+        if st.button("🚫 OCULTAR STOCK"):
+            st.session_state.ver_stock_general = False
+            st.rerun()
+        
+        dep_v = st.selectbox("Seleccione Depósito:", config["depositos"])
+        tab_v = st.tabs(config["marcas"])
+        for i, m_nom in enumerate(config["marcas"]):
+            with tab_v[i]:
+                items_v = {k: v for k, v in inv.items() if v['marca'] == m_nom and v['deposito'] == dep_v and v['stock'] > 0}
+                if items_v:
+                    for id_f, info in sorted(items_v.items()): mostrar_item_lectura(id_f, info)
+                else: st.write("Sin existencias.")
+
+    # 3. ACCESO AL PANEL
     st.write("---")
-    if st.button("⚙️ Configuración / Entrada al Controlador", use_container_width=True):
+    if st.button("⚙️ ENTRAR AL CONTROLADOR", use_container_width=True):
         st.session_state.mostrar_panel = True
         st.rerun()
 
 else:
-    # ================= PÁGINA DE CONTROL (MODIFICACIÓN) =================
-    st.title("🛠️ Panel de Control")
-    if st.button("⬅️ VOLVER A CONSULTAS", use_container_width=True):
+    # --- PANEL DE CONTROL (MODIFICACIÓN) ---
+    st.title("🛠️ Panel de Modificación")
+    if st.button("⬅️ VOLVER AL INICIO"):
         st.session_state.mostrar_panel = False
         st.rerun()
     
     st.divider()
-    busq_m = st.text_input("🔎 BUSCAR PARA EDITAR:", placeholder="Escriba código...").upper().strip()
+    busq_m = st.text_input("🔎 BUSCAR PARA EDITAR:", placeholder="Código...").upper().strip()
 
     if busq_m:
         items_f = {k: v for k, v in inv.items() if (k.split("_", 1)[1] if "_" in k else k) == busq_m}
         if items_f:
-            for id_f, info in items_f.items(): mostrar_item(id_f, info, "ed_busq", modo_edicion=True)
-        else: st.error("No existe.")
+            for id_f, info in items_f.items(): mostrar_item_edicion(id_f, info, "busq")
+        else: st.error("No encontrado.")
     else:
-        dep_sel = st.selectbox("📍 Editar en Depósito:", config["depositos"])
+        dep_sel = st.selectbox("📍 Depósito Actual:", config["depositos"])
         tabs_e = st.tabs(config["marcas"] + ["⚠️ AGOTADOS"])
-        for i, nombre_t in enumerate(config["marcas"] + ["⚠️ AGOTADOS"]):
+        for i, m_e in enumerate(config["marcas"] + ["⚠️ AGOTADOS"]):
             with tabs_e[i]:
-                if nombre_t == "⚠️ AGOTADOS":
+                if m_e == "⚠️ AGOTADOS":
                     items = {k: v for k, v in inv.items() if v['stock'] == 0 and v['deposito'] == dep_sel}
                 else:
-                    items = {k: v for k, v in inv.items() if v['marca'] == nombre_t and v['deposito'] == dep_sel and v['stock'] > 0}
-                for id_f, info in sorted(items.items()):
-                    mostrar_item(id_f, info, "ed_tab", modo_edicion=True)
+                    items = {k: v for k, v in inv.items() if v['marca'] == m_e and v['deposito'] == dep_sel and v['stock'] > 0}
+                for id_f, info in sorted(items.items()): mostrar_item_edicion(id_f, info, "tab")
 
-# --- SIDEBAR (ACCESO) ---
+# --- SIDEBAR ---
 with st.sidebar:
     st.header("🔐 Acceso")
-    if not st.session_state.edit_mode:
+    if not st.session_state.get('edit_mode', False):
         u = st.selectbox("Usuario", list(config["usuarios"].keys()))
         p = st.text_input("Clave", type="password")
-        if st.button("🔓 Desbloquear Edición"):
-            if config.get("usuarios", {}).get(u) == p:
-                st.session_state.edit_mode, st.session_state.usuario_actual = True, u
+        if st.button("🔓 Desbloquear"):
+            if config["usuarios"].get(u) == p:
+                st.session_state.edit_mode = True
+                st.session_state.usuario_actual = u
                 st.rerun()
     else:
         st.success(f"👤 {st.session_state.usuario_actual}")
@@ -151,7 +165,7 @@ with st.sidebar:
         st.divider()
         with st.expander("🆕 Registrar Nuevo"):
             rm = st.selectbox("Marca", config["marcas"])
-            rc = st.text_input("Nuevo Código").upper().strip()
+            rc = st.text_input("Código").upper().strip()
             rd = st.selectbox("Depósito", config["depositos"])
             if st.button("💾 Guardar"):
                 if rc:
