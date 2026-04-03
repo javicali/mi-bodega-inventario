@@ -11,11 +11,15 @@ SCOPE = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/au
 
 def conectar_google():
     try:
+        # Si estamos en la nube de Streamlit
         if "gcp_service_account" in st.secrets:
-            creds_info = json.loads(st.secrets["gcp_service_account"]["json_creds"])
-            creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_info, SCOPE)
+            # Cargamos el texto que guardamos en 'json_creds'
+            info_llaves = json.loads(st.secrets["gcp_service_account"]["json_creds"])
+            creds = ServiceAccountCredentials.from_json_keyfile_dict(info_llaves, SCOPE)
         else:
+            # Si estamos probando local en la iMac
             creds = ServiceAccountCredentials.from_json_keyfile_name('creds.json', SCOPE)
+            
         client = gspread.authorize(creds)
         return client.open(NOMBRE_EXCEL)
     except Exception as e:
