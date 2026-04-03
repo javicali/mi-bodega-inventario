@@ -200,3 +200,4 @@ with st.sidebar:
                 st.divider()
             if st.button("🗑️ Borrar Historial"):
                 logs = []; guardar_todo(inv, config, logs); st.rerun()
+```
