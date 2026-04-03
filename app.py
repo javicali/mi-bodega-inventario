@@ -1,4 +1,3 @@
-
 import streamlit as st
 import json
 import os
@@ -29,7 +28,6 @@ def guardar_todo(inv, conf, logs):
     with open(ARCHIVO_LOG, "w", encoding="utf-8") as f: json.dump(logs, f, indent=4)
 
 def registrar_log(logs, usuario, accion, detalle):
-    # Ajuste manual a UTC-4 (Bolivia)
     hora_correcta = datetime.now() - timedelta(hours=4)
     nuevo_log = {
         "fecha": hora_correcta.strftime("%d/%m/%Y %H:%M"),
@@ -57,18 +55,24 @@ if 'usuario_actual' not in st.session_state: st.session_state.usuario_actual = "
 
 st.title("🏢 Inventario")
 
-# --- BUSCADOR ---
-busq = st.text_input("🔍 BUSCAR CÓDIGO:").upper().strip()
-if busq:
-    # Buscamos coincidencias ignorando el prefijo del depósito en la llave
+# --- BUSCADOR CON BOTÓN ---
+c_bus1, c_bus2 = st.columns([3, 1])
+with c_bus1:
+    busq = st.text_input("Escribe el Código:", key="in_busq").upper().strip()
+with c_bus2:
+    st.write("##") # Espaciador para alinear con el input
+    ejecutar_busqueda = st.button("🔍 BUSCAR", use_container_width=True)
+
+if ejecutar_busqueda and busq:
     res = [v for k, v in inv.items() if (k.split("_", 1)[1] if "_" in k else k) == busq]
     if res:
         for r in res:
-            # Lógica para singular/plural
             txt_caja = "caja" if r['stock'] == 1 else "cajas"
             st.info(f"📍 {r['deposito']} | **{r['marca']}**: {r['stock']} {txt_caja}")
     else:
-        st.warning("❌ No existe el código buscado")
+        st.error(f"❌ El código '{busq}' no existe.")
+elif ejecutar_busqueda and not busq:
+    st.warning("⚠️ Por favor, escribe un código primero.")
 
 st.divider()
 
@@ -100,7 +104,6 @@ if st.session_state.mostrar_panel:
                     c1, c2, c3 = st.columns([1.5, 1, 1.8])
                     c1.markdown(f"**{cod_l}**\n<small>{info['marca']}</small>", unsafe_allow_html=True)
                     
-                    # También lo cambiamos aquí para que sea coherente
                     txt_caja_panel = "caja" if info['stock'] == 1 else "cajas"
                     c2.markdown(f"📦 **{info['stock']}**\n<small>{txt_caja_panel}</small>", unsafe_allow_html=True)
                     
