@@ -1,3 +1,12 @@
+Tienes razón, al reconstruir la lógica de la barra lateral, el selector de **Marca** se quedó dentro del expansor de "Nuevo Código", pero no hay un lugar para **gestionar o agregar nuevas marcas** a la configuración global.
+
+He añadido una nueva sección llamada **⚙️ Configuración Sistema** al final de la barra lateral (solo visible cuando estás logueado). Desde ahí podrás:
+1.  **Añadir nuevas Marcas** (aparecerán automáticamente en los filtros y pestañas).
+2.  **Añadir nuevos Depósitos**.
+
+Aquí tienes el código completo corregido:
+
+```python
 import streamlit as st
 import json
 import os
@@ -147,7 +156,7 @@ with st.sidebar:
         st.divider()
         with st.expander("🆕 Nuevo Código"):
             n_m, n_c, n_d = st.selectbox("Marca", config["marcas"]), st.text_input("Código").upper().strip(), st.selectbox("Depósito", config["depositos"])
-            if st.button("💾 Crear"):
+            if st.button("💾 Crear Código"):
                 if n_c:
                     inv[f"{n_d}_{n_c}"] = {"marca": n_m, "deposito": n_d, "stock": 0}
                     registrar_log(logs, st.session_state.usuario_actual, "CREACION", f"Nuevo: {n_c}")
@@ -162,6 +171,23 @@ with st.sidebar:
                     if f"{td}_{tc}" not in inv: inv[f"{td}_{tc}"] = {"marca": inv[f"{to}_{tc}"]["marca"], "deposito": td, "stock": 0}
                     inv[f"{td}_{tc}"]["stock"] += tq
                     registrar_log(logs, st.session_state.usuario_actual, "TRASLADO", f"{tq} {tc} ({to}->{td})")
+                    guardar_todo(inv, config, logs); st.rerun()
+
+        # --- SECCIÓN NUEVA: GESTIÓN DE MARCAS Y DEPÓSITOS ---
+        with st.expander("⚙️ Gestión Marcas/Depósitos"):
+            st.subheader("Marcas")
+            nueva_marca = st.text_input("Nombre Nueva Marca").upper().strip()
+            if st.button("➕ Añadir Marca"):
+                if nueva_marca and nueva_marca not in config["marcas"]:
+                    config["marcas"].append(nueva_marca)
+                    guardar_todo(inv, config, logs); st.rerun()
+            
+            st.divider()
+            st.subheader("Depósitos")
+            nuevo_depo = st.text_input("Nombre Nuevo Depósito").upper().strip()
+            if st.button("➕ Añadir Depósito"):
+                if nuevo_depo and nuevo_depo not in config["depositos"]:
+                    config["depositos"].append(nuevo_depo)
                     guardar_todo(inv, config, logs); st.rerun()
 
         # --- REPORTE E HISTORIAL ---
@@ -182,3 +208,4 @@ with st.sidebar:
                 st.divider()
             if st.button("🗑️ Limpiar historial"):
                 logs = []; guardar_todo(inv, config, logs); st.rerun()
+```
