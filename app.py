@@ -9,26 +9,37 @@ from datetime import datetime, timedelta
 NOMBRE_EXCEL = "DB_BODEGA_SISTEMA"
 SCOPE = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
 
+import base64
+
 def conectar_google():
     try:
-        # 1. Si estamos en la NUBE (Streamlit Secrets)
         if "gcp_service_account" in st.secrets:
+            # 1. Cargamos los secretos
             creds_dict = dict(st.secrets["gcp_service_account"])
             
-            # REPARACIÓN DE LLAVE: Limpia espacios y saltos de línea
-            raw_key = creds_dict["private_key"].strip().replace("\\n", "\n")
+            # 2. LIMPIEZA PROFUNDA DE LA LLAVE
+            raw_key = creds_dict["private_key"]
+            # Quitamos espacios al principio y al final
+            raw_key = raw_key.strip()
+            # Arreglamos los saltos de línea
+            raw_key = raw_key.replace("\\n", "\n")
+            
+            # 3. REPARACIÓN MATEMÁTICA DEL PADDING
+            # Base64 necesita que la longitud sea múltiplo de 4
+            rem = len(raw_key) % 4
+            if rem > 0:
+                raw_key += "=" * (4 - rem)
+            
             creds_dict["private_key"] = raw_key
             
-            # USAMOS EL MÉTODO CORRECTO PARA DICCIONARIOS
+            # 4. CONEXIÓN POR DICCIONARIO
             creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, SCOPE)
-        
-        # 2. Si estamos en la iMac (Local)
         else:
+            # Respaldo para tu iMac
             creds = ServiceAccountCredentials.from_json_keyfile_name('creds.json', SCOPE)
             
         client = gspread.authorize(creds)
         return client.open(NOMBRE_EXCEL)
-        
     except Exception as e:
         st.error(f"❌ Error de conexión: {e}")
         return None
