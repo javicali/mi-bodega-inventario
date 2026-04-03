@@ -87,9 +87,28 @@ if st.session_state.mostrar_panel:
             for id_f, info in sorted(items_mostrar.items()):
                 cod_l = id_f.split("_", 1)[1] if "_" in id_f else id_f
                 with st.container(border=True):
-                    c_txt, c_stk, c_act = st.columns([1, 1, 2])
-                    c_txt.markdown(f"### {cod_l}\n**Marca: {info['marca']}**")
-                    c_stk.metric("Stock Actual", f"{info['stock']} cajas")
+                    # Usamos columnas más ajustadas para móvil
+                    c_txt, c_stk, c_act = st.columns([1.5, 1, 1.2])
+                    
+                    # Texto más pequeño para el código y marca
+                    c_txt.markdown(f"**{cod_l}**\n\n<small>{info['marca']}</small>", unsafe_allow_html=True)
+                    
+                    # Stock en texto simple para ahorrar espacio
+                    c_stk.markdown(f"📦 **{info['stock']}**")
+                    
+                    if st.session_state.edit_mode:
+                        with c_act:
+                            # Input de número más compacto
+                            cant = st.number_input(f"Cant", min_value=1, value=1, key=f"input_{id_f}", label_visibility="collapsed")
+                            col_b1, col_b2, col_del = st.columns(3)
+                            
+                            col_b1.button("➕", key=f"btn_add_{id_f}", use_container_width=True)
+                            col_b2.button("➖", key=f"btn_sub_{id_f}", use_container_width=True, disabled=(info['stock'] == 0))
+                            col_del.button("🗑️", key=f"btn_del_{id_f}", use_container_width=True)
+
+                            # Lógica de confirmación (se mantiene igual)
+                            if st.sidebar.button("Confirmar Suma", key=f"c_add_{id_f}"): # Ejemplo de simplificación
+                                pass
                     
                     if st.session_state.edit_mode:
                         with c_act:
