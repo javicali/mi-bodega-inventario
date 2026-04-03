@@ -29,14 +29,12 @@ def registrar_log(logs, usuario, accion, detalle):
 
 st.set_page_config(page_title="Bodega Pro Ultra", layout="wide")
 
-# Estilos visuales
 st.markdown("""<style>
     .block-container {padding-top: 1rem;}
     .stButton>button {padding: 0.2rem 0.5rem; width: 100%;}
     small { color: #888; }
 </style>""", unsafe_allow_html=True)
 
-# Cargar datos
 inv = cargar_json(ARCHIVO_DB, {})
 config = cargar_json(ARCHIVO_CONF, {"usuarios": {"ADMIN": "admin123"}, "depositos": ["SETAR"], "marcas": ["IRUN", "BOOTY"]})
 logs = cargar_json(ARCHIVO_LOG, [])
@@ -138,7 +136,7 @@ else:
             if it_p:
                 for k, v in sorted(it_p.items()): mostrar_item_edicion(k, v, f"p_tab_{i}")
 
-# --- SIDEBAR (BARRA LATERAL) ---
+# --- SIDEBAR ---
 with st.sidebar:
     st.header("🔐 Acceso")
     if not st.session_state.edit_mode:
@@ -157,7 +155,6 @@ with st.sidebar:
             st.session_state.edit_mode = False; st.session_state.modo_panel = False; st.rerun()
 
         st.divider()
-        # SECCIÓN PARA TODOS LOS USUARIOS LOGUEADOS
         with st.expander("🆕 Nuevo Código"):
             n_m = st.selectbox("Marca", config["marcas"])
             n_c = st.text_input("Código").upper().strip()
@@ -168,30 +165,58 @@ with st.sidebar:
                     registrar_log(logs, st.session_state.usuario_actual, "CREACION", f"Nuevo: {n_c}")
                     guardar_todo(inv, config, logs); st.rerun()
 
-        # SECCIÓN SOLO PARA EL ADMINISTRADOR (Historial, Usuarios, Depósitos, Reportes)
         if st.session_state.usuario_actual.upper() == "ADMIN":
             st.markdown("### 👑 Administración")
             
-            with st.expander("👥 Gestión Usuarios"):
-                nu = st.text_input("Nuevo Usuario").upper().strip()
-                np = st.text_input("Nueva Clave", type="password")
-                if st.button("➕ Crear Usuario"):
-                    if nu: config["usuarios"][nu] = np; guardar_todo(inv, config, logs); st.rerun()
+            with st.expander("🏘️ Gestión de Depósitos"):
+                st.write("**Lista Actual:**")
+                for d in config["depositos"]:
+                    c1, c2 = st.columns([3, 1])
+                    c1.write(f"📍 {d}")
+                    if c2.button("🗑️", key=f"del_dep_{d}"):
+                        config["depositos"].remove(d)
+                        guardar_todo(inv, config, logs); st.rerun()
+                
                 st.divider()
-                st.write("Lista:")
-                for u in list(config["usuarios"].keys()):
-                    if u != "ADMIN":
-                        if st.button(f"🗑️ Eliminar {u}"):
-                            del config["usuarios"][u]; guardar_todo(inv, config, logs); st.rerun()
+                st.write("**Renombrar Depósito:**")
+                d_viejo = st.selectbox("Seleccionar para cambiar:", config["depositos"], key="sel_old")
+                d_nuevo = st.text_input("Nombre Nuevo:").upper().strip()
+                if st.button("Aplicar Cambio de Nombre"):
+                    if d_nuevo and d_nuevo not in config["depositos"]:
+                        # 1. Cambiar en la lista de config
+                        idx = config["depositos"].index(d_viejo)
+                        config["depositos"][idx] = d_nuevo
+                        # 2. Cambiar en todos los productos del inventario
+                        nuevo_inv = {}
+                        for k, v in inv.items():
+                            if v["deposito"] == d_viejo:
+                                v["deposito"] = d_nuevo
+                                codigo_real = k.split("_", 1)[1] if "_" in k else k
+                                nuevo_inv[f"{d_nuevo}_{codigo_real}"] = v
+                            else:
+                                nuevo_inv[k] = v
+                        inv.clear()
+                        inv.update(nuevo_inv)
+                        registrar_log(logs, "ADMIN", "RENOMBRAR", f"{d_viejo} -> {d_nuevo}")
+                        guardar_todo(inv, config, logs); st.rerun()
+                
+                st.divider()
+                nd = st.text_input("Añadir Depósito Nuevo").upper().strip()
+                if st.button("➕ Añadir"):
+                    if nd and nd not in config["depositos"]:
+                        config["depositos"].append(nd)
+                        guardar_todo(inv, config, logs); st.rerun()
 
-            with st.expander("🏷️ Marcas y Depósitos"):
-                nm = st.text_input("Añadir Marca").upper().strip()
+            with st.expander("🏷️ Gestión de Marcas"):
+                for m in config["marcas"]:
+                    c1, c2 = st.columns([3, 1])
+                    c1.write(m)
+                    if c2.button("🗑️", key=f"del_mar_{m}"):
+                        config["marcas"].remove(m)
+                        guardar_todo(inv, config, logs); st.rerun()
+                nm = st.text_input("Nueva Marca").upper().strip()
                 if st.button("➕ Marca"):
                     if nm and nm not in config["marcas"]: config["marcas"].append(nm); guardar_todo(inv, config, logs); st.rerun()
-                st.divider()
-                nd = st.text_input("Añadir Depo").upper().strip()
-                if st.button("➕ Depo"):
-                    if nd and nd not in config["depositos"]: config["depositos"].append(nd); guardar_todo(inv, config, logs); st.rerun()
 
             with st.expander("🔄 Traslados"):
                 tc, to, td = st.text_input("Cod").upper().strip(), st.selectbox("Desde", config["depositos"]), st.selectbox("Hacia", config["depositos"])
@@ -211,11 +236,7 @@ with st.sidebar:
                     buffer = io.BytesIO()
                     with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
                         df_stk.to_excel(writer, index=False, sheet_name='STOCK')
-                    st.download_button("📥 DESCARGAR EXCEL", buffer.getvalue(), "Reporte_Inventario.xlsx", use_container_width=True)
-                
-                st.divider()
-                if st.button("🗑️ Limpiar Historial"):
-                    logs = []; guardar_todo(inv, config, logs); st.rerun()
+                    st.download_button("📥 DESCARGAR EXCEL", buffer.getvalue(), "Inventario.xlsx", use_container_width=True)
                 
                 for l in logs[:15]:
                     st.write(f"**{l['usuario']}**: {l['detalle']}  \n<small>{l['fecha']}</small>", unsafe_allow_html=True)
