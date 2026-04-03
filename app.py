@@ -62,7 +62,7 @@ logs = cargar_json(ARCHIVO_LOG, [])
 if 'modo_panel' not in st.session_state: st.session_state.modo_panel = False
 if 'edit_mode' not in st.session_state: st.session_state.edit_mode = False
 
-# --- FUNCIÓN TARJETA DE EDICIÓN ---
+# --- FUNCIÓN TARJETA DE EDICIÓN (CON MENSAJES PERSISTENTES) ---
 def mostrar_item_edicion(id_f, info, sufijo):
     cod_l = id_f.split("_", 1)[1] if "_" in id_f else id_f
     with st.container(border=True):
@@ -78,7 +78,19 @@ def mostrar_item_edicion(id_f, info, sufijo):
             if b3.button("🗑️", key=f"del_{sufijo}_{id_f}"): st.session_state[f"conf_{sufijo}_{id_f}"] = "B"
 
             estado = st.session_state.get(f"conf_{sufijo}_{id_f}")
-            if estado:
+            
+            # Si ya se hizo clic en confirmar y los datos se guardaron, mostramos el mensaje de éxito
+            if f"msg_{sufijo}_{id_f}" in st.session_state:
+                tipo, texto = st.session_state[f"msg_{sufijo}_{id_f}"]
+                if tipo == "S": st.success(texto)
+                elif tipo == "R": st.warning(texto)
+                elif tipo == "B": st.error(texto)
+                if st.button("OK, cerrar aviso", key=f"clr_{sufijo}_{id_f}"):
+                    del st.session_state[f"msg_{sufijo}_{id_f}"]
+                    st.rerun()
+
+            # Lógica de los botones de confirmación
+            elif estado:
                 txt_btn = "CONFIRMAR"
                 if estado == "S": txt_btn = f"CONFIRMAR SUMA (+{cant})"
                 elif estado == "R": txt_btn = f"CONFIRMAR RESTA (-{cant})"
@@ -88,20 +100,19 @@ def mostrar_item_edicion(id_f, info, sufijo):
                     if estado == "S": 
                         inv[id_f]["stock"] += cant
                         registrar_log(logs, st.session_state.usuario_actual, "SUMA", f"+{cant} {cod_l}")
-                        st.toast(f"✅ Añadidas {cant} unidades a {cod_l}", icon="➕")
+                        st.session_state[f"msg_{sufijo}_{id_f}"] = ("S", f"Añadidas {cant} cajas")
                     elif estado == "R": 
                         inv[id_f]["stock"] -= cant
                         registrar_log(logs, st.session_state.usuario_actual, "RESTA", f"-{cant} {cod_l}")
-                        st.toast(f"⠂ Salieron {cant} unidades de {cod_l}", icon="➖")
+                        st.session_state[f"msg_{sufijo}_{id_f}"] = ("R", f"Salieron {cant} cajas")
                     elif estado == "B": 
                         registrar_log(logs, st.session_state.usuario_actual, "BORRAR", f"Eliminó {cod_l}")
-                        st.toast(f"🗑️ Código {cod_l} eliminado", icon="⚠️")
+                        st.session_state[f"msg_{sufijo}_{id_f}"] = ("B", f"Código eliminado")
                         del inv[id_f]
                     
                     guardar_todo(inv, config, logs)
                     del st.session_state[f"conf_{sufijo}_{id_f}"]
                     st.rerun()
-
 # --- LÓGICA DE INTERFAZ PRINCIPAL ---
 if not st.session_state.modo_panel:
     st.title("🏢 Consulta de Inventario")
