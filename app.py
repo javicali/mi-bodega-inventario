@@ -11,23 +11,21 @@ SCOPE = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/au
 
 def conectar_google():
     try:
-        # 1. Intentar entrar por la NUBE (Streamlit Secrets)
         if "gcp_service_account" in st.secrets:
-            # Convertimos los secretos directamente a un diccionario
+            # Cargamos los secretos
             creds_dict = dict(st.secrets["gcp_service_account"])
             
-            # Limpieza de seguridad para la llave
-            creds_dict["private_key"] = creds_dict["private_key"].replace("\\n", "\n")
+            # --- ESTO ES LO QUE ARREGLA EL ERROR asn1Spec ---
+            # Limpia espacios raros y asegura que los saltos de línea sean reales
+            raw_key = creds_dict["private_key"]
+            creds_dict["private_key"] = raw_key.replace("\\n", "\n").strip()
             
             creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, SCOPE)
-        
-        # 2. Si no es la nube, usar el archivo local de la iMac
         else:
             creds = ServiceAccountCredentials.from_json_keyfile_name('creds.json', SCOPE)
             
         client = gspread.authorize(creds)
         return client.open(NOMBRE_EXCEL)
-        
     except Exception as e:
         st.error(f"❌ Error de conexión: {e}")
         return None
