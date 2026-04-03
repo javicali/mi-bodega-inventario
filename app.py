@@ -28,6 +28,7 @@ def guardar_todo(inv, conf, logs):
     with open(ARCHIVO_LOG, "w", encoding="utf-8") as f: json.dump(logs, f, indent=4)
 
 def registrar_log(logs, usuario, accion, detalle):
+    # Ajuste manual a UTC-4 (Bolivia)
     hora_correcta = datetime.now() - timedelta(hours=4)
     nuevo_log = {
         "fecha": hora_correcta.strftime("%d/%m/%Y %H:%M"),
@@ -55,24 +56,23 @@ if 'usuario_actual' not in st.session_state: st.session_state.usuario_actual = "
 
 st.title("🏢 Inventario")
 
-# --- BUSCADOR CON BOTÓN ---
-c_bus1, c_bus2 = st.columns([3, 1])
+# --- BUSCADOR PEQUEÑO ---
+c_bus1, c_bus2 = st.columns([4, 1]) # Proporción 4 a 1 para que el botón sea pequeño
 with c_bus1:
-    busq = st.text_input("Escribe el Código:", key="in_busq").upper().strip()
+    busq = st.text_input("Código:", key="in_busq", placeholder="Escribe aquí...").upper().strip()
 with c_bus2:
-    st.write("##") # Espaciador para alinear con el input
-    ejecutar_busqueda = st.button("🔍 BUSCAR", use_container_width=True)
+    st.write("##") # Alineación vertical
+    ejecutar_busqueda = st.button("🔍", use_container_width=True, type="primary")
 
-if ejecutar_busqueda and busq:
+if (ejecutar_busqueda or (busq and st.session_state.get('last_busq') != busq)) and busq:
+    st.session_state['last_busq'] = busq
     res = [v for k, v in inv.items() if (k.split("_", 1)[1] if "_" in k else k) == busq]
     if res:
         for r in res:
             txt_caja = "caja" if r['stock'] == 1 else "cajas"
             st.info(f"📍 {r['deposito']} | **{r['marca']}**: {r['stock']} {txt_caja}")
     else:
-        st.error(f"❌ El código '{busq}' no existe.")
-elif ejecutar_busqueda and not busq:
-    st.warning("⚠️ Por favor, escribe un código primero.")
+        st.error("❌ No existe")
 
 st.divider()
 
