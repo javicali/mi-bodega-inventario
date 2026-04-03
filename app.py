@@ -131,7 +131,7 @@ with st.sidebar:
 
         st.divider()
 
-        # 1. NUEVO CÓDIGO
+        # 1. NUEVO CÓDIGO (Disponible para todos los logueados)
         with st.expander("🆕 Nuevo Código"):
             rm = st.selectbox("Marca", config["marcas"], key="reg_m")
             rc = st.text_input("Código", key="reg_c").upper().strip()
@@ -142,8 +142,9 @@ with st.sidebar:
                     registrar_log(logs, st.session_state.usuario_actual, "CREACION", f"Creó {rc}")
                     guardar_todo(inv, config, logs); st.rerun()
 
-        # 2. USUARIOS (SOLO ADMIN)
+        # SOLO PARA EL ADMIN
         if st.session_state.usuario_actual == "ADMIN":
+            # 2. GESTIÓN DE USUARIOS
             with st.expander("👥 Gestión de Usuarios"):
                 for user in list(config["usuarios"].keys()):
                     c1, c2 = st.columns([3, 1])
@@ -177,26 +178,25 @@ with st.sidebar:
                 if st.button("➕ Añadir Depo"):
                     if nd and nd not in config["depositos"]: config["depositos"].append(nd); guardar_todo(inv, config, logs); st.rerun()
 
-        # 5. TRASLADO ENTRE DEPÓSITOS
-        with st.expander("🔄 Traslado entre Depósitos"):
-            t_cod = st.text_input("Código a trasladar", key="tr_c").upper().strip()
-            t_origen = st.selectbox("Desde:", config["depositos"], key="t_ori")
-            t_destino = st.selectbox("Hacia:", config["depositos"], key="t_des")
-            t_cant = st.number_input("Cantidad", min_value=1, value=1, key="tr_q")
-            if st.button("Confirmar Traslado"):
-                id_ori = f"{t_origen}_{t_cod}"
-                id_des = f"{t_destino}_{t_cod}"
-                if id_ori in inv and inv[id_ori]["stock"] >= t_cant:
-                    inv[id_ori]["stock"] -= t_cant
-                    if id_des not in inv:
-                        inv[id_des] = {"marca": inv[id_ori]["marca"], "deposito": t_destino, "stock": 0}
-                    inv[id_des]["stock"] += t_cant
-                    registrar_log(logs, st.session_state.usuario_actual, "TRASLADO", f"Movió {t_cant} {t_cod} de {t_origen} a {t_destino}")
-                    guardar_todo(inv, config, logs); st.rerun()
-                else: st.error("Stock insuficiente o no existe")
+            # 5. TRASLADO ENTRE DEPÓSITOS (OCULTO PARA SECUNDARIOS)
+            with st.expander("🔄 Traslado entre Depósitos"):
+                t_cod = st.text_input("Código a trasladar", key="tr_c").upper().strip()
+                t_origen = st.selectbox("Desde:", config["depositos"], key="t_ori")
+                t_destino = st.selectbox("Hacia:", config["depositos"], key="t_des")
+                t_cant = st.number_input("Cantidad", min_value=1, value=1, key="tr_q")
+                if st.button("Confirmar Traslado"):
+                    id_ori = f"{t_origen}_{t_cod}"
+                    id_des = f"{t_destino}_{t_cod}"
+                    if id_ori in inv and inv[id_ori]["stock"] >= t_cant:
+                        inv[id_ori]["stock"] -= t_cant
+                        if id_des not in inv:
+                            inv[id_des] = {"marca": inv[id_ori]["marca"], "deposito": t_destino, "stock": 0}
+                        inv[id_des]["stock"] += t_cant
+                        registrar_log(logs, st.session_state.usuario_actual, "TRASLADO", f"Movió {t_cant} {t_cod} de {t_origen} a {t_destino}")
+                        guardar_todo(inv, config, logs); st.rerun()
+                    else: st.error("Stock insuficiente o no existe")
 
-        # 6. HISTORIAL (SOLO ADMIN)
-        if st.session_state.usuario_actual == "ADMIN":
+            # 6. HISTORIAL
             with st.expander("📝 Historial"):
                 if st.button("🗑️ Limpiar Historial"): logs = []; guardar_todo(inv, config, logs); st.rerun()
                 for l in logs: st.write(f"<small>{l['fecha']} | {l['usuario']} | {l['detalle']}</small>", unsafe_allow_html=True)
