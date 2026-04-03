@@ -5,7 +5,7 @@ import pandas as pd
 import io
 from datetime import datetime, timedelta
 
-# --- CONFIGURACIÓN DE ARCHIVOS ---
+# --- CONFIGURACION DE ARCHIVOS ---
 ARCHIVO_DB = "datos_bodega.json"
 ARCHIVO_CONF = "config_bodega.json"
 ARCHIVO_LOG = "historial_movimientos.json"
@@ -32,7 +32,7 @@ def registrar_log(logs, usuario, accion, detalle):
     logs.insert(0, {"fecha": hora, "usuario": usuario, "accion": accion, "detalle": detalle})
     return logs[:200]
 
-st.set_page_config(page_title="Bodega Pro Ultra", layout="wide")
+st.set_page_config(page_title="Bodega Inventario", layout="wide")
 
 # --- ESTILOS CSS ---
 st.markdown("""
@@ -53,13 +53,13 @@ logs = cargar_json(ARCHIVO_LOG, [])
 if 'modo_panel' not in st.session_state: st.session_state.modo_panel = False
 if 'edit_mode' not in st.session_state: st.session_state.edit_mode = False
 
-# --- FUNCIÓN TARJETA DE EDICIÓN ---
+# --- TARJETA DE EDICION ---
 def mostrar_item_edicion(id_f, info, sufijo):
     cod_l = id_f.split("_", 1)[1] if "_" in id_f else id_f
     with st.container(border=True):
         c1, c2, c3 = st.columns([1.5, 1, 2.5])
         c1.markdown(f"**{cod_l}**\n<small>{info['marca']} | {info['deposito']}</small>", unsafe_allow_html=True)
-        c2.markdown(f"📦 **{info['stock']}**\n<small>unidades</small>", unsafe_allow_html=True)
+        c2.markdown(f"**Stock: {info['stock']}**", unsafe_allow_html=True)
         
         with c3:
             key_msg = f"msg_{sufijo}_{id_f}"
@@ -81,60 +81,65 @@ def mostrar_item_edicion(id_f, info, sufijo):
                 if estado:
                     txt = f"CONFIRMAR {'SUMA' if estado=='S' else 'RESTA' if estado=='R' else 'ELIMINACION'}"
                     if st.button(txt, key=f"ok_{sufijo}_{id_f}", type="primary"):
+                        usuario = st.session_state.get("usuario_actual", "ADMIN")
                         if estado == "S":
                             inv[id_f]["stock"] += cant
-                            registrar_log(logs, st.session_state.usuario_actual, "SUMA", f"+{cant} {cod_l}")
+                            registrar_log(logs, usuario, "SUMA", f"+{cant} {cod_l}")
                             st.session_state[key_msg] = ("S", f"Sumadas {cant}")
                         elif estado == "R":
                             if inv[id_f]["stock"] >= cant:
                                 inv[id_f]["stock"] -= cant
-                                registrar_log(logs, st.session_state.usuario_actual, "RESTA", f"-{cant} {cod_l}")
+                                registrar_log(logs, usuario, "RESTA", f"-{cant} {cod_l}")
                                 st.session_state[key_msg] = ("R", f"Restadas {cant}")
                         elif estado == "B":
-                            registrar_log(logs, st.session_state.usuario_actual, "BORRAR", f"Elimino {cod_l}")
+                            registrar_log(logs, usuario, "BORRAR", f"Elimino {cod_l}")
                             del inv[id_f]
                         
                         guardar_todo(inv, config, logs)
                         if f"conf_{sufijo}_{id_f}" in st.session_state: del st.session_state[f"conf_{sufijo}_{id_f}"]
                         st.rerun()
 
-# --- INTERFAZ PRINCIPAL ---
+# --- VISTA INICIO ---
 if not st.session_state.modo_panel:
     st.title("Consulta de Inventario")
-    col_bus, col_lupa = st.columns([4, 1])
-    with col_bus:
-        busq = st.text_input("Buscar codigo:", placeholder="Escriba aqui...").upper().strip()
-    with col_lupa:
+    c_izq, c_der = st.columns([4, 1])
+    with c_izq:
+        busq = st.text_input("Buscar codigo:", placeholder="Escriba codigo...").upper().strip()
+    with c_der:
         st.write("##")
-        btn_lupa = st.button("Buscar")
+        btn_buscar = st.button("Buscar")
 
-    if busq or btn_lupa:
+    if busq or btn_buscar:
         if busq:
             res = {k: v for k, v in inv.items() if (k.split("_", 1)[1] if "_" in k else k) == busq}
             if res:
                 for k, v in res.items():
-                    st.info(f"**{busq}** ({v['marca']}) en **{v['deposito']}**: {v['stock']} unidades")
+                    st.info(f"Codigo: **{busq}** | Marca: **{v['marca']}** | Deposito: **{v['deposito']}** | Cantidad: **{v['stock']}**")
             else:
                 st.warning("No encontrado.")
+# --- VISTA PANEL ---
 else:
     st.title("Panel de Control")
-    b_p = st.text_input("BUSCAR PARA EDITAR:").upper().strip()
-    if b_p:
-        res_p = {k: v for k, v in inv.items() if (k.split("_", 1)[1] if "_" in k else k) == b_p}
-        for k, v in res_p.items(): mostrar_item_edicion(k, v, "p_busq")
+    busq_edit = st.text_input("BUSCAR PARA EDITAR:").upper().strip()
+    if busq_edit:
+        res_e = {k: v for k, v in inv.items() if (k.split("_", 1)[1] if "_" in k else k) == busq_edit}
+        for k, v in res_e.items(): mostrar_item_edicion(k, v, "edit_search")
     
     st.divider()
-    dep_p = st.selectbox("Deposito de trabajo:", config["depositos"])
-    tabs_p = st.tabs(config["marcas"] + ["AGOTADOS"])
-    for i, m_p in enumerate(config["marcas"] + ["AGOTADOS"]):
-        with tabs_p[i]:
-            if m_p == "AGOTADOS":
-                it_p = {k: v for k, v in inv.items() if v['stock']==0 and v['deposito']==dep_p}
+    dep_actual = st.selectbox("Deposito de trabajo:", config["depositos"])
+    opciones_tabs = config["marcas"] + ["AGOTADOS"]
+    tabs = st.tabs(opciones_tabs)
+    
+    for i, nombre_tab in enumerate(opciones_tabs):
+        with tabs[i]:
+            if nombre_tab == "AGOTADOS":
+                items = {k: v for k, v in inv.items() if v['stock'] == 0 and v['deposito'] == dep_actual}
             else:
-                it_p = {k: v for k, v in inv.items() if v['marca']==m_p and v['deposito']==dep_p and v['stock']>0}
-            for k, v in sorted(it_p.items()): mostrar_item_edicion(k, v, f"p_tab_{i}")
+                items = {k: v for k, v in inv.items() if v['marca'] == nombre_tab and v['deposito'] == dep_actual and v['stock'] > 0}
+            for k, v in sorted(items.items()):
+                mostrar_item_edicion(k, v, f"tab_{i}")
 
-# --- BARRA LATERAL (SIDEBAR) ---
+# --- BARRA LATERAL ---
 with st.sidebar:
     st.header("Acceso")
     if not st.session_state.edit_mode:
@@ -153,58 +158,50 @@ with st.sidebar:
             st.session_state.edit_mode = False; st.session_state.modo_panel = False; st.rerun()
 
         st.divider()
-        with st.expander("Nuevo Codigo"):
-            n_m, n_c, n_d = st.selectbox("Marca", config["marcas"]), st.text_input("Codigo").upper().strip(), st.selectbox("Deposito", config["depositos"])
-            if st.button("Crear Codigo"):
+        with st.expander("Crear Nuevo"):
+            n_m = st.selectbox("Marca", config["marcas"])
+            n_c = st.text_input("Codigo").upper().strip()
+            n_d = st.selectbox("Deposito", config["depositos"])
+            if st.button("Guardar"):
                 if n_c:
                     inv[f"{n_d}_{n_c}"] = {"marca": n_m, "deposito": n_d, "stock": 0}
                     registrar_log(logs, st.session_state.usuario_actual, "CREACION", f"Nuevo: {n_c}")
                     guardar_todo(inv, config, logs); st.rerun()
 
         with st.expander("Traslados"):
-            tc, to, td = st.text_input("Cod").upper().strip(), st.selectbox("De", config["depositos"]), st.selectbox("A", config["depositos"])
-            tq = st.number_input("Cant.", min_value=1, value=1)
-            if st.button("Trasladar"):
-                if f"{to}_{tc}" in inv and inv[f"{to}_{tc}"]["stock"] >= tq:
-                    inv[f"{to}_{tc}"]["stock"] -= tq
-                    if f"{td}_{tc}" not in inv:
-                        inv[f"{td}_{tc}"] = {"marca": inv[f"{to}_{tc}"]["marca"], "deposito": td, "stock": 0}
-                    inv[f"{td}_{tc}"]["stock"] += tq
-                    registrar_log(logs, st.session_state.usuario_actual, "TRASLADO", f"{tq} {tc} ({to}->{td})")
+            t_cod = st.text_input("Codigo a mover").upper().strip()
+            t_de = st.selectbox("De", config["depositos"])
+            t_a = st.selectbox("A", config["depositos"])
+            t_cant = st.number_input("Cantidad", min_value=1, value=1)
+            if st.button("Ejecutar Traslado"):
+                id_origen = f"{t_de}_{t_cod}"
+                if id_origen in inv and inv[id_origen]["stock"] >= t_cant:
+                    inv[id_origen]["stock"] -= t_cant
+                    id_destino = f"{t_a}_{t_cod}"
+                    if id_destino not in inv:
+                        inv[id_destino] = {"marca": inv[id_origen]["marca"], "deposito": t_a, "stock": 0}
+                    inv[id_destino]["stock"] += t_cant
+                    registrar_log(logs, st.session_state.usuario_actual, "TRASLADO", f"{t_cant} {t_cod} ({t_de}->{t_a})")
                     guardar_todo(inv, config, logs); st.rerun()
 
-        # --- GESTION DE MARCAS Y DEPOSITOS ---
-        with st.expander("Configuracion Sistema"):
-            st.write("Marcas Actuales")
-            nueva_marca = st.text_input("Nueva Marca").upper().strip()
+        with st.expander("Gestion Marcas"):
+            nueva_m = st.text_input("Nueva Marca").upper().strip()
             if st.button("Anadir Marca"):
-                if nueva_marca and nueva_marca not in config["marcas"]:
-                    config["marcas"].append(nueva_marca)
-                    guardar_todo(inv, config, logs); st.rerun()
-            
-            st.divider()
-            st.write("Depositos Actuales")
-            nuevo_depo = st.text_input("Nuevo Deposito").upper().strip()
-            if st.button("Anadir Deposito"):
-                if nuevo_depo and nuevo_depo not in config["depositos"]:
-                    config["depositos"].append(nuevo_depo)
+                if nueva_m and nueva_m not in config["marcas"]:
+                    config["marcas"].append(nueva_m)
                     guardar_todo(inv, config, logs); st.rerun()
 
-        # --- REPORTE E HISTORIAL ---
         st.divider()
-        st.subheader("Reportes e Historial")
+        st.subheader("Reportes")
         if logs or inv:
-            df_mov = pd.DataFrame(logs).reindex(columns=['fecha', 'usuario', 'accion', 'detalle'])
-            df_stk = pd.DataFrame([{"Depo": v['deposito'], "Marca": v['marca'], "Codigo": k.split('_')[-1], "Cant": v['stock']} for k, v in inv.items()])
+            df_stk = pd.DataFrame([{"Deposito": v['deposito'], "Marca": v['marca'], "Codigo": k.split('_')[-1], "Cantidad": v['stock']} for k, v in inv.items()])
             buffer = io.BytesIO()
             with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
-                df_stk.to_excel(writer, index=False, sheet_name='STOCK')
-                df_mov.to_excel(writer, index=False, sheet_name='LOGS')
-            st.download_button("DESCARGAR EXCEL", buffer.getvalue(), f"Reporte_{datetime.now().strftime('%d_%m')}.xlsx", use_container_width=True)
+                df_stk.to_excel(writer, index=False, sheet_name='Stock')
+            st.download_button("DESCARGAR EXCEL", buffer.getvalue(), "Inventario.xlsx", use_container_width=True)
 
-        with st.expander("Ver movimientos"):
-            for l in logs[:15]:
-                st.markdown(f"**{l.get('usuario','SISTEMA')}**: {l['detalle']}  \n<small>{l['fecha']}</small>", unsafe_allow_html=True)
+        with st.expander("Historial"):
+            for l in logs[:10]:
+                st.write(f"**{l['usuario']}**: {l['detalle']}")
+                st.caption(l['fecha'])
                 st.divider()
-            if st.button("Limpiar historial"):
-                logs = []; guardar_todo(inv, config, logs); st.rerun()
