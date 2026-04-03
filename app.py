@@ -14,6 +14,38 @@ import re
 def conectar_google():
     try:
         if "gcp_service_account" in st.secrets:
+            creds_dict = dict(st.secrets["gcp_service_account"])
+            
+            # --- LIMPIEZA QUIRÚRGICA ---
+            raw_key = creds_dict["private_key"]
+            
+            # Buscamos dónde empieza y termina realmente la llave
+            inicio = "-----BEGIN PRIVATE KEY-----"
+            fin = "-----END PRIVATE KEY-----"
+            
+            if inicio in raw_key and fin in raw_key:
+                # Extraemos solo lo que hay en medio
+                contenido = raw_key.split(inicio)[1].split(fin)[0]
+                # Quitamos CUALQUIER cosa que no sean letras, números o símbolos de base64
+                # Esto elimina los 'Unused bytes' (\xa8\x8f) automáticamente
+                contenido_limpio = re.sub(r'[^a-zA-Z0-9+/=]', '', contenido)
+                
+                # Reconstruimos la llave perfecta
+                creds_dict["private_key"] = f"{inicio}\n{contenido_limpio}\n{fin}\n"
+            
+            creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, SCOPE)
+        else:
+            creds = ServiceAccountCredentials.from_json_keyfile_name('creds.json', SCOPE)
+            
+        client = gspread.authorize(creds)
+        return client.open(NOMBRE_EXCEL)
+    except Exception as e:
+        st.error(f"❌ Error de conexión: {e}")
+        return None re
+
+def conectar_google():
+    try:
+        if "gcp_service_account" in st.secrets:
             # 1. Cargamos los secretos
             creds_dict = dict(st.secrets["gcp_service_account"])
             
