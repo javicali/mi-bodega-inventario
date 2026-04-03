@@ -1,3 +1,10 @@
+Es muy probable que al reorganizar el código para mover el historial, se hayan borrado por error las líneas que dibujan las columnas de búsqueda o los botones de acción.
+
+Aquí tienes la **versión definitiva y corregida**. He restaurado la "Lupa" en el inicio, los botones de "Confirmar" en el panel de edición y he dejado el Historial exactamente donde lo pediste.
+
+### Copia y pega este código completo:
+
+```python
 import streamlit as st
 import json
 import os
@@ -7,7 +14,7 @@ from datetime import datetime, timedelta
 
 # --- CONFIGURACIÓN DE ARCHIVOS ---
 ARCHIVO_DB = "datos_bodega.json"
-ARCHIVO_CONF = "config_conf.json"
+ARCHIVO_CONF = "config_bodega.json"
 ARCHIVO_LOG = "historial_movimientos.json"
 
 def cargar_json(archivo, defecto):
@@ -62,6 +69,7 @@ def mostrar_item_edicion(id_f, info, sufijo):
                 tipo, texto = st.session_state[key_msg]
                 if tipo == "S": st.success(texto)
                 elif tipo == "R": st.warning(texto)
+                elif tipo == "B": st.error(texto)
                 if st.button("OK ✅", key=f"clr_{sufijo}_{id_f}"):
                     del st.session_state[key_msg]
                     st.rerun()
@@ -76,32 +84,51 @@ def mostrar_item_edicion(id_f, info, sufijo):
                 if estado:
                     txt = f"CONFIRMAR {'SUMA' if estado=='S' else 'RESTA' if estado=='R' else 'ELIMINACIÓN'}"
                     if st.button(txt, key=f"ok_{sufijo}_{id_f}", type="primary"):
+                        usuario = st.session_state.usuario_actual
                         if estado == "S":
                             inv[id_f]["stock"] += cant
-                            registrar_log(logs, st.session_state.usuario_actual, "SUMA", f"+{cant} {cod_l}")
+                            registrar_log(logs, usuario, "SUMA", f"+{cant} {cod_l}")
                             st.session_state[key_msg] = ("S", f"Añadidas {cant} unidades")
                         elif estado == "R":
                             inv[id_f]["stock"] -= cant
-                            registrar_log(logs, st.session_state.usuario_actual, "RESTA", f"-{cant} {cod_l}")
+                            registrar_log(logs, usuario, "RESTA", f"-{cant} {cod_l}")
                             st.session_state[key_msg] = ("R", f"Salieron {cant} unidades")
                         elif estado == "B":
-                            registrar_log(logs, st.session_state.usuario_actual, "BORRAR", f"Eliminó {cod_l}")
+                            registrar_log(logs, usuario, "BORRAR", f"Eliminó {cod_l}")
+                            st.session_state[key_msg] = ("B", "Código eliminado")
                             del inv[id_f]
                         
                         guardar_todo(inv, config, logs)
                         del st.session_state[f"conf_{sufijo}_{id_f}"]
                         st.rerun()
 
-# --- INTERFAZ PRINCIPAL ---
+# --- INTERFAZ PRINCIPAL (CON LUPA RESTAURADA) ---
 if not st.session_state.modo_panel:
     st.title("🏢 Consulta de Inventario")
-    busq = st.text_input("Buscar código:").upper().strip()
-    if busq:
-        res = {k: v for k, v in inv.items() if (k.split("_", 1)[1] if "_" in k else k) == busq}
-        if res:
-            for k, v in res.items():
-                st.info(f"**{busq}** ({v['marca']}) en **{v['deposito']}**: {v['stock']} unidades")
-        else: st.warning("No encontrado.")
+    c_busq, c_btn = st.columns([4, 1])
+    with c_busq:
+        busq = st.text_input("Buscar código:", placeholder="Ingrese código...").upper().strip()
+    with c_btn:
+        st.write("##")
+        boton_lupa = st.button("🔍 Buscar")
+
+    if busq or boton_lupa:
+        if busq:
+            res = {k: v for k, v in inv.items() if (k.split("_", 1)[1] if "_" in k else k) == busq}
+            if res:
+                for k, v in res.items():
+                    st.info(f"**{busq}** ({v['marca']}) en **{v['deposito']}**: {v['stock']} unidades")
+            else: st.warning("⚠️ No encontrado.")
+    
+    st.divider()
+    if st.checkbox("👁️ Ver Stock General"):
+        d_v = st.selectbox("Depósito:", config["depositos"])
+        tbs = st.tabs(config["marcas"])
+        for i, m in enumerate(config["marcas"]):
+            with tbs[i]:
+                it = {k: v for k, v in inv.items() if v['marca']==m and v['deposito']==d_v and v['stock']>0}
+                for kid, info in it.items(): st.write(f"**{kid.split('_')[-1]}**: {info['stock']} unidades")
+
 else:
     st.title("🛠️ Panel de Control")
     b_p = st.text_input("🔎 BUSCAR PARA EDITAR:").upper().strip()
@@ -114,8 +141,8 @@ else:
     tabs_p = st.tabs(config["marcas"] + ["⚠️ AGOTADOS"])
     for i, m_p in enumerate(config["marcas"] + ["⚠️ AGOTADOS"]):
         with tabs_p[i]:
-            if m_p == "⚠️ AGOTADOS": it_p = {k: v for k, v in inv.items() if v['stock']==0 and v['deposito']==dep_p}
-            else: it_p = {k: v for k, v in inv.items() if v['marca']==m_p and v['deposito']==dep_p and v['stock']>0}
+            if m_p == "⚠️ AGOTADOS": it_p = {k: v for k, v in inv.items() if v.get('stock',0)==0 and v.get('deposito')==dep_p}
+            else: it_p = {k: v for k, v in inv.items() if v.get('marca')==m_p and v.get('deposito')==dep_p and v.get('stock',0)>0}
             for k, v in sorted(it_p.items()): mostrar_item_edicion(k, v, f"p_tab_{i}")
 
 # --- BARRA LATERAL (SIDEBAR) ---
@@ -134,7 +161,7 @@ with st.sidebar:
             st.session_state.modo_panel = not st.session_state.modo_panel
             st.rerun()
         if st.button("🔒 Salir"):
-            st.session_state.edit_mode = False; st.rerun()
+            st.session_state.edit_mode = False; st.session_state.modo_panel = False; st.rerun()
 
         st.divider()
         with st.expander("🆕 Nuevo Código"):
@@ -155,7 +182,7 @@ with st.sidebar:
                     registrar_log(logs, st.session_state.usuario_actual, "TRASLADO", f"{tq} {tc} ({to}->{td})")
                     guardar_todo(inv, config, logs); st.rerun()
 
-        # AQUÍ ES DONDE VA EL HISTORIAL Y REPORTES (DEBAJO DE TRASLADOS)
+        # --- HISTORIAL ABAJO DE TRASLADOS ---
         st.divider()
         st.subheader("📝 Reportes e Historial")
         if logs or inv:
@@ -165,11 +192,11 @@ with st.sidebar:
             with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
                 df_stk.to_excel(writer, index=False, sheet_name='STOCK')
                 df_mov.to_excel(writer, index=False, sheet_name='LOGS')
-            st.download_button("📥 DESCARGAR EXCEL", buffer.getvalue(), f"Reporte_{datetime.now().strftime('%d_%m')}.xlsx", use_container_width=True)
+            st.download_button("📥 EXCEL COMPLETO", buffer.getvalue(), f"Reporte_{datetime.now().strftime('%d_%m')}.xlsx", use_container_width=True)
 
-        with st.expander("👁️ Ver últimos movimientos"):
+        with st.expander("👁️ Ver movimientos"):
             for l in logs[:15]:
                 st.markdown(f"**👤 {l.get('usuario','SISTEMA')}**: {l['detalle']}<br><small>{l['fecha']}</small>", unsafe_allow_html=True)
                 st.divider()
-            if st.button("🗑️ Limpiar Historial"):
+            if st.button("🗑️ Borrar Historial"):
                 logs = []; guardar_todo(inv, config, logs); st.rerun()
