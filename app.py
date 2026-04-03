@@ -9,33 +9,38 @@ from datetime import datetime, timedelta
 NOMBRE_EXCEL = "DB_BODEGA_SISTEMA"
 SCOPE = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
 
+import re # Asegúrate de tener esta línea al principio del archivo
+
 def conectar_google():
     try:
-        # 1. Si estamos en Streamlit Cloud (Nube)
         if "gcp_service_account" in st.secrets:
-            # Cargamos los secretos como un diccionario
             creds_dict = dict(st.secrets["gcp_service_account"])
             
-            # Limpiamos la llave por si acaso (esto ya lo tenemos dominado)
-            raw_key = creds_dict["private_key"].strip().replace("\\n", "\n")
-            creds_dict["private_key"] = raw_key
+            # --- LIMPIEZA QUIRÚRGICA ---
+            raw_key = creds_dict["private_key"]
             
-            # ¡EL CAMBIO CLAVE! 
-            # Usamos 'from_json_keyfile_dict' en lugar de 'from_json_keyfile_name'
+            # 1. Extraemos solo el contenido entre las etiquetas BEGIN y END
+            if "-----BEGIN PRIVATE KEY-----" in raw_key:
+                parts = raw_key.split("-----")
+                # La parte del medio (índice 2) es la llave real
+                key_content = parts[2]
+                
+                # 2. ELIMINAMOS TODO lo que no sea base64 (espacios, saltos de línea, basura)
+                # Esto soluciona el error de los 65 caracteres
+                clean_content = re.sub(r'[^a-zA-Z0-9+/=]', '', key_content)
+                
+                # 3. Reconstruimos la llave perfectamente para Google
+                creds_dict["private_key"] = f"-----BEGIN PRIVATE KEY-----\n{clean_content}\n-----END PRIVATE KEY-----\n"
+            
             creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, SCOPE)
-            
         else:
-            # 2. Si estás probando en tu iMac (Local)
-            # Aquí sí se usa 'name' porque el archivo 'creds.json' existe físicamente
             creds = ServiceAccountCredentials.from_json_keyfile_name('creds.json', SCOPE)
             
         client = gspread.authorize(creds)
         return client.open(NOMBRE_EXCEL)
-        
     except Exception as e:
         st.error(f"❌ Error de conexión: {e}")
-        return None
-        
+        return None        
 # --- FUNCIONES DE BASE DE DATOS ---
 def cargar_todo():
     sh = conectar_google()
