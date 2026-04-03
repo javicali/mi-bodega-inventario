@@ -41,7 +41,7 @@ def conectar_google():
         return client.open(NOMBRE_EXCEL)
     except Exception as e:
         st.error(f"❌ Error de conexión: {e}")
-        return None re
+        return None
 
 def conectar_google():
     try:
