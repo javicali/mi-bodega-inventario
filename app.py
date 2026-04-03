@@ -23,6 +23,7 @@ def guardar_todo(inv, conf, logs):
     with open(ARCHIVO_LOG, "w", encoding="utf-8") as f: json.dump(logs, f, indent=4)
 
 def registrar_log(logs, usuario, accion, detalle):
+    # Ajuste de hora (UTC-4)
     hora = (datetime.now() - timedelta(hours=4)).strftime("%d/%m/%Y %H:%M")
     logs.insert(0, {"fecha": hora, "usuario": usuario, "accion": accion, "detalle": detalle})
     return logs[:200]
@@ -44,7 +45,7 @@ logs = cargar_json(ARCHIVO_LOG, [])
 if 'modo_panel' not in st.session_state: st.session_state.modo_panel = False
 if 'edit_mode' not in st.session_state: st.session_state.edit_mode = False
 
-# --- FUNCIÓN TARJETA DE EDICIÓN (WIDGETS) ---
+# --- FUNCIÓN TARJETA DE EDICIÓN ---
 def mostrar_item_edicion(id_f, info, sufijo):
     cod_l = id_f.split("_", 1)[1] if "_" in id_f else id_f
     with st.container(border=True):
@@ -76,15 +77,24 @@ def mostrar_item_edicion(id_f, info, sufijo):
 # --- LÓGICA DE INTERFAZ PRINCIPAL ---
 if not st.session_state.modo_panel:
     st.title("🏢 Consulta de Inventario")
-    busq = st.text_input("🔍 Buscar código rápido:", placeholder="Escriba el código...").upper().strip()
-    if busq:
+    
+    # BUSCADOR CON LUPA RESTAURADO
+    col_busq, col_btn = st.columns([4, 1])
+    with col_busq:
+        busq = st.text_input("Buscar código:", key="main_search", placeholder="Ingrese código...").upper().strip()
+    with col_btn:
+        st.write("##") # Espaciador para alinear con el input
+        ejecutar_busq = st.button("🔍 Buscar", use_container_width=True)
+
+    if busq or ejecutar_busq:
         res = {k: v for k, v in inv.items() if (k.split("_", 1)[1] if "_" in k else k) == busq}
         if res:
             for k, v in res.items():
                 msg = f"**{busq}** ({v['marca']}) en **{v['deposito']}**: {v['stock']} cajas"
                 if v['stock'] > 0: st.success(f"✅ {msg}")
                 else: st.error(f"🚨 AGOTADO: {msg}")
-        else: st.warning("⚠️ Código no encontrado.")
+        elif busq:
+            st.warning("⚠️ Código no registrado en el sistema.")
     
     st.divider()
     if st.checkbox("👁️ Ver Stock General por Depósito"):
@@ -98,7 +108,7 @@ if not st.session_state.modo_panel:
 
 else:
     st.title("🛠️ Panel de Control y Modificación")
-    # Buscador interno
+    # Buscador interno del panel
     b_p = st.text_input("🔎 BUSCAR PARA EDITAR (Cualquier depo):").upper().strip()
     if b_p:
         res_p = {k: v for k, v in inv.items() if (k.split("_", 1)[1] if "_" in k else k) == b_p}
@@ -107,8 +117,9 @@ else:
     st.divider()
     # Pestañas por depósito
     dep_p = st.selectbox("📍 Depósito de trabajo:", config["depositos"])
-    tabs_p = st.tabs(config["marcas"] + ["⚠️ AGOTADOS"])
-    for i, m_p in enumerate(config["marcas"] + ["⚠️ AGOTADOS"]):
+    nombres_tabs = config["marcas"] + ["⚠️ AGOTADOS"]
+    tabs_p = st.tabs(nombres_tabs)
+    for i, m_p in enumerate(nombres_tabs):
         with tabs_p[i]:
             if m_p == "⚠️ AGOTADOS":
                 it_p = {k: v for k, v in inv.items() if v.get('stock',0)==0 and v.get('deposito')==dep_p}
@@ -117,7 +128,7 @@ else:
             
             if it_p:
                 for k, v in sorted(it_p.items()): mostrar_item_edicion(k, v, f"p_tab_{i}")
-            else: st.write(f"No hay registros en esta sección.")
+            else: st.write(f"No hay registros en {m_p}.")
 
 # --- SIDEBAR (GESTIÓN) ---
 with st.sidebar:
@@ -131,7 +142,8 @@ with st.sidebar:
                 st.rerun()
     else:
         st.success(f"👤 {st.session_state.usuario_actual}")
-        if st.button("🏠 VISTA INICIO" if st.session_state.modo_panel else "⚙️ PANEL CONTROL"):
+        txt_m = "🏠 VISTA INICIO" if st.session_state.modo_panel else "⚙️ PANEL CONTROL"
+        if st.button(txt_m):
             st.session_state.modo_panel = not st.session_state.modo_panel
             st.rerun()
         if st.button("🔒 Salir"):
@@ -213,7 +225,7 @@ with st.sidebar:
             # 6. HISTORIAL Y EXCEL
             with st.expander("📝 Historial y Reportes"):
                 if logs or inv:
-                    # Preparar Excel
+                    # Preparar Excel con dos pestañas
                     df_mov = pd.DataFrame(logs)
                     df_stk = pd.DataFrame([{"Depo": v['deposito'], "Marca": v['marca'], "Código": k.split('_')[-1], "Cant": v['stock']} for k, v in inv.items()])
                     buffer = io.BytesIO()
