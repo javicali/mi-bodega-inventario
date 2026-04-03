@@ -9,23 +9,25 @@ from datetime import datetime, timedelta
 NOMBRE_EXCEL = "DB_BODEGA_SISTEMA"
 SCOPE = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
 
+import json
+import gspread
+from oauth2client.service_account import ServiceAccountCredentials
+
 def conectar_google():
     try:
         if "gcp_service_account" in st.secrets:
+            # Cargamos los datos como un diccionario
             creds_dict = dict(st.secrets["gcp_service_account"])
             
-            # --- CURACIÓN DE LLAVE (Padding & Saltos) ---
-            raw_key = creds_dict["private_key"]
-            # 1. Quitamos espacios accidentales
-            raw_key = raw_key.strip()
-            # 2. Aseguramos que los saltos de línea sean correctos
-            raw_key = raw_key.replace("\\n", "\n")
+            # --- CURACIÓN DE LLAVE ---
+            # Quitamos espacios al inicio/final y arreglamos los saltos de línea
+            f_key = creds_dict["private_key"].strip().replace("\\n", "\n")
+            creds_dict["private_key"] = f_key
             
-            creds_dict["private_key"] = raw_key
-            
-            # Usamos el método para diccionarios
+            # Conexión usando el diccionario limpio
             creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, SCOPE)
         else:
+            # Respaldo para tu iMac
             creds = ServiceAccountCredentials.from_json_keyfile_name('creds.json', SCOPE)
             
         client = gspread.authorize(creds)
