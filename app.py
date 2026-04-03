@@ -2,9 +2,8 @@ import streamlit as st
 import json
 import os
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 
-# Archivos de base de datos
 ARCHIVO_DB = "datos_bodega.json"
 ARCHIVO_CONF = "config_bodega.json"
 ARCHIVO_LOG = "historial_movimientos.json"
@@ -28,9 +27,10 @@ def guardar_todo(inv, conf, logs):
     with open(ARCHIVO_LOG, "w", encoding="utf-8") as f: json.dump(logs, f, indent=4)
 
 def registrar_log(logs, usuario, accion, detalle):
-    # Ahora el log incluye el usuario de forma explícita
+    # Ajuste manual a UTC-4 (Bolivia)
+    hora_correcta = datetime.now() - timedelta(hours=4)
     nuevo_log = {
-        "fecha": datetime.now().strftime("%d/%m/%Y %H:%M"),
+        "fecha": hora_correcta.strftime("%d/%m/%Y %H:%M"),
         "usuario": usuario,
         "accion": accion,
         "detalle": detalle
@@ -120,7 +120,6 @@ if st.session_state.mostrar_panel:
                                     logs = registrar_log(logs, st.session_state.usuario_actual, "ELIMINAR", f"Borró {cod_l}")
                                     guardar_todo(inv, config, logs); del st.session_state[f"ask_del_{key_id}"]; st.rerun()
 
-# --- SIDEBAR ---
 with st.sidebar:
     st.header("🔐 Acceso")
     if not st.session_state.edit_mode:
@@ -202,6 +201,5 @@ with st.sidebar:
                         config["depositos"].remove(del_d); guardar_todo(inv, config, logs); st.rerun()
 
             with st.expander("📜 4. Historial"):
-                # Mostrar quién hizo el cambio claramente
                 for l in logs:
                     st.write(f"**{l['fecha']}** | 👤 {l.get('usuario','?')}: {l['detalle']}")
