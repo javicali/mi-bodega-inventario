@@ -1,12 +1,3 @@
-Tienes razón, al reconstruir la lógica de la barra lateral, el selector de **Marca** se quedó dentro del expansor de "Nuevo Código", pero no hay un lugar para **gestionar o agregar nuevas marcas** a la configuración global.
-
-He añadido una nueva sección llamada **⚙️ Configuración Sistema** al final de la barra lateral (solo visible cuando estás logueado). Desde ahí podrás:
-1.  **Añadir nuevas Marcas** (aparecerán automáticamente en los filtros y pestañas).
-2.  **Añadir nuevos Depósitos**.
-
-Aquí tienes el código completo corregido:
-
-```python
 import streamlit as st
 import json
 import os
@@ -22,14 +13,19 @@ ARCHIVO_LOG = "historial_movimientos.json"
 def cargar_json(archivo, defecto):
     if os.path.exists(archivo):
         with open(archivo, "r", encoding="utf-8") as f:
-            try: return json.load(f)
-            except: return defecto
+            try:
+                return json.load(f)
+            except:
+                return defecto
     return defecto
 
 def guardar_todo(inv, conf, logs):
-    with open(ARCHIVO_DB, "w", encoding="utf-8") as f: json.dump(inv, f, indent=4)
-    with open(ARCHIVO_CONF, "w", encoding="utf-8") as f: json.dump(conf, f, indent=4)
-    with open(ARCHIVO_LOG, "w", encoding="utf-8") as f: json.dump(logs, f, indent=4)
+    with open(ARCHIVO_DB, "w", encoding="utf-8") as f:
+        json.dump(inv, f, indent=4)
+    with open(ARCHIVO_CONF, "w", encoding="utf-8") as f:
+        json.dump(conf, f, indent=4)
+    with open(ARCHIVO_LOG, "w", encoding="utf-8") as f:
+        json.dump(logs, f, indent=4)
 
 def registrar_log(logs, usuario, accion, detalle):
     hora = (datetime.now() - timedelta(hours=4)).strftime("%d/%m/%Y %H:%M")
@@ -46,7 +42,7 @@ st.markdown("""
     small { color: #888; }
     div.stButton > button:contains("CONFIRMAR SUMA") { background-color: #28a745 !important; color: white !important; }
     div.stButton > button:contains("CONFIRMAR RESTA") { background-color: #dc3545 !important; color: white !important; }
-    div.stButton > button:contains("CONFIRMAR ELIMINACIÓN") { background-color: #dc3545 !important; color: white !important; }
+    div.stButton > button:contains("CONFIRMAR ELIMINACION") { background-color: #dc3545 !important; color: white !important; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -71,31 +67,31 @@ def mostrar_item_edicion(id_f, info, sufijo):
                 tipo, texto = st.session_state[key_msg]
                 if tipo == "S": st.success(texto)
                 elif tipo == "R": st.warning(texto)
-                if st.button("OK ✅", key=f"clr_{sufijo}_{id_f}"):
+                if st.button("OK", key=f"clr_{sufijo}_{id_f}"):
                     del st.session_state[key_msg]
                     st.rerun()
             else:
                 cant = st.number_input("Cant", min_value=1, value=1, key=f"n_{sufijo}_{id_f}", label_visibility="collapsed")
                 b1, b2, b3 = st.columns(3)
-                if b1.button("➕", key=f"add_{sufijo}_{id_f}"): st.session_state[f"conf_{sufijo}_{id_f}"] = "S"
-                if b2.button("➖", key=f"sub_{sufijo}_{id_f}", disabled=info['stock']==0): st.session_state[f"conf_{sufijo}_{id_f}"] = "R"
-                if b3.button("🗑️", key=f"del_{sufijo}_{id_f}"): st.session_state[f"conf_{sufijo}_{id_f}"] = "B"
+                if b1.button("+", key=f"add_{sufijo}_{id_f}"): st.session_state[f"conf_{sufijo}_{id_f}"] = "S"
+                if b2.button("-", key=f"sub_{sufijo}_{id_f}", disabled=info['stock']==0): st.session_state[f"conf_{sufijo}_{id_f}"] = "R"
+                if b3.button("x", key=f"del_{sufijo}_{id_f}"): st.session_state[f"conf_{sufijo}_{id_f}"] = "B"
 
                 estado = st.session_state.get(f"conf_{sufijo}_{id_f}")
                 if estado:
-                    txt = f"CONFIRMAR {'SUMA' if estado=='S' else 'RESTA' if estado=='R' else 'ELIMINACIÓN'}"
+                    txt = f"CONFIRMAR {'SUMA' if estado=='S' else 'RESTA' if estado=='R' else 'ELIMINACION'}"
                     if st.button(txt, key=f"ok_{sufijo}_{id_f}", type="primary"):
                         if estado == "S":
                             inv[id_f]["stock"] += cant
                             registrar_log(logs, st.session_state.usuario_actual, "SUMA", f"+{cant} {cod_l}")
-                            st.session_state[key_msg] = ("S", f"Añadidas {cant}")
+                            st.session_state[key_msg] = ("S", f"Sumadas {cant}")
                         elif estado == "R":
                             if inv[id_f]["stock"] >= cant:
                                 inv[id_f]["stock"] -= cant
                                 registrar_log(logs, st.session_state.usuario_actual, "RESTA", f"-{cant} {cod_l}")
-                                st.session_state[key_msg] = ("R", f"Salieron {cant}")
+                                st.session_state[key_msg] = ("R", f"Restadas {cant}")
                         elif estado == "B":
-                            registrar_log(logs, st.session_state.usuario_actual, "BORRAR", f"Eliminó {cod_l}")
+                            registrar_log(logs, st.session_state.usuario_actual, "BORRAR", f"Elimino {cod_l}")
                             del inv[id_f]
                         
                         guardar_todo(inv, config, logs)
@@ -104,13 +100,13 @@ def mostrar_item_edicion(id_f, info, sufijo):
 
 # --- INTERFAZ PRINCIPAL ---
 if not st.session_state.modo_panel:
-    st.title("🏢 Consulta de Inventario")
+    st.title("Consulta de Inventario")
     col_bus, col_lupa = st.columns([4, 1])
     with col_bus:
-        busq = st.text_input("Buscar código:", placeholder="Escriba aquí...").upper().strip()
+        busq = st.text_input("Buscar codigo:", placeholder="Escriba aqui...").upper().strip()
     with col_lupa:
         st.write("##")
-        btn_lupa = st.button("🔍 Buscar")
+        btn_lupa = st.button("Buscar")
 
     if busq or btn_lupa:
         if busq:
@@ -118,94 +114,97 @@ if not st.session_state.modo_panel:
             if res:
                 for k, v in res.items():
                     st.info(f"**{busq}** ({v['marca']}) en **{v['deposito']}**: {v['stock']} unidades")
-            else: st.warning("No encontrado.")
+            else:
+                st.warning("No encontrado.")
 else:
-    st.title("🛠️ Panel de Control")
-    b_p = st.text_input("🔎 BUSCAR PARA EDITAR:").upper().strip()
+    st.title("Panel de Control")
+    b_p = st.text_input("BUSCAR PARA EDITAR:").upper().strip()
     if b_p:
         res_p = {k: v for k, v in inv.items() if (k.split("_", 1)[1] if "_" in k else k) == b_p}
         for k, v in res_p.items(): mostrar_item_edicion(k, v, "p_busq")
     
     st.divider()
-    dep_p = st.selectbox("📍 Depósito de trabajo:", config["depositos"])
-    tabs_p = st.tabs(config["marcas"] + ["⚠️ AGOTADOS"])
-    for i, m_p in enumerate(config["marcas"] + ["⚠️ AGOTADOS"]):
+    dep_p = st.selectbox("Deposito de trabajo:", config["depositos"])
+    tabs_p = st.tabs(config["marcas"] + ["AGOTADOS"])
+    for i, m_p in enumerate(config["marcas"] + ["AGOTADOS"]):
         with tabs_p[i]:
-            if m_p == "⚠️ AGOTADOS": it_p = {k: v for k, v in inv.items() if v['stock']==0 and v['deposito']==dep_p}
-            else: it_p = {k: v for k, v in inv.items() if v['marca']==m_p and v['deposito']==dep_p and v['stock']>0}
+            if m_p == "AGOTADOS":
+                it_p = {k: v for k, v in inv.items() if v['stock']==0 and v['deposito']==dep_p}
+            else:
+                it_p = {k: v for k, v in inv.items() if v['marca']==m_p and v['deposito']==dep_p and v['stock']>0}
             for k, v in sorted(it_p.items()): mostrar_item_edicion(k, v, f"p_tab_{i}")
 
 # --- BARRA LATERAL (SIDEBAR) ---
 with st.sidebar:
-    st.header("🔐 Acceso")
+    st.header("Acceso")
     if not st.session_state.edit_mode:
         u_log = st.selectbox("Usuario", list(config["usuarios"].keys()))
         p_log = st.text_input("Clave", type="password")
-        if st.button("🔓 Entrar"):
+        if st.button("Entrar"):
             if config["usuarios"].get(u_log) == p_log:
                 st.session_state.edit_mode, st.session_state.usuario_actual = True, u_log
                 st.rerun()
     else:
-        st.success(f"👤 {st.session_state.usuario_actual}")
-        if st.button("🏠 VISTA INICIO" if st.session_state.modo_panel else "⚙️ PANEL CONTROL"):
+        st.success(f"Usuario: {st.session_state.usuario_actual}")
+        if st.button("VISTA INICIO" if st.session_state.modo_panel else "PANEL CONTROL"):
             st.session_state.modo_panel = not st.session_state.modo_panel
             st.rerun()
-        if st.button("🔒 Salir"):
+        if st.button("Salir"):
             st.session_state.edit_mode = False; st.session_state.modo_panel = False; st.rerun()
 
         st.divider()
-        with st.expander("🆕 Nuevo Código"):
-            n_m, n_c, n_d = st.selectbox("Marca", config["marcas"]), st.text_input("Código").upper().strip(), st.selectbox("Depósito", config["depositos"])
-            if st.button("💾 Crear Código"):
+        with st.expander("Nuevo Codigo"):
+            n_m, n_c, n_d = st.selectbox("Marca", config["marcas"]), st.text_input("Codigo").upper().strip(), st.selectbox("Deposito", config["depositos"])
+            if st.button("Crear Codigo"):
                 if n_c:
                     inv[f"{n_d}_{n_c}"] = {"marca": n_m, "deposito": n_d, "stock": 0}
                     registrar_log(logs, st.session_state.usuario_actual, "CREACION", f"Nuevo: {n_c}")
                     guardar_todo(inv, config, logs); st.rerun()
 
-        with st.expander("🔄 Traslados"):
-            tc, to, td = st.text_input("Cód").upper().strip(), st.selectbox("De", config["depositos"]), st.selectbox("A", config["depositos"])
+        with st.expander("Traslados"):
+            tc, to, td = st.text_input("Cod").upper().strip(), st.selectbox("De", config["depositos"]), st.selectbox("A", config["depositos"])
             tq = st.number_input("Cant.", min_value=1, value=1)
             if st.button("Trasladar"):
                 if f"{to}_{tc}" in inv and inv[f"{to}_{tc}"]["stock"] >= tq:
                     inv[f"{to}_{tc}"]["stock"] -= tq
-                    if f"{td}_{tc}" not in inv: inv[f"{td}_{tc}"] = {"marca": inv[f"{to}_{tc}"]["marca"], "deposito": td, "stock": 0}
+                    if f"{td}_{tc}" not in inv:
+                        inv[f"{td}_{tc}"] = {"marca": inv[f"{to}_{tc}"]["marca"], "deposito": td, "stock": 0}
                     inv[f"{td}_{tc}"]["stock"] += tq
                     registrar_log(logs, st.session_state.usuario_actual, "TRASLADO", f"{tq} {tc} ({to}->{td})")
                     guardar_todo(inv, config, logs); st.rerun()
 
-        # --- SECCIÓN NUEVA: GESTIÓN DE MARCAS Y DEPÓSITOS ---
-        with st.expander("⚙️ Gestión Marcas/Depósitos"):
-            st.subheader("Marcas")
-            nueva_marca = st.text_input("Nombre Nueva Marca").upper().strip()
-            if st.button("➕ Añadir Marca"):
+        # --- GESTION DE MARCAS Y DEPOSITOS ---
+        with st.expander("Configuracion Sistema"):
+            st.write("Marcas Actuales")
+            nueva_marca = st.text_input("Nueva Marca").upper().strip()
+            if st.button("Anadir Marca"):
                 if nueva_marca and nueva_marca not in config["marcas"]:
                     config["marcas"].append(nueva_marca)
                     guardar_todo(inv, config, logs); st.rerun()
             
             st.divider()
-            st.subheader("Depósitos")
-            nuevo_depo = st.text_input("Nombre Nuevo Depósito").upper().strip()
-            if st.button("➕ Añadir Depósito"):
+            st.write("Depositos Actuales")
+            nuevo_depo = st.text_input("Nuevo Deposito").upper().strip()
+            if st.button("Anadir Deposito"):
                 if nuevo_depo and nuevo_depo not in config["depositos"]:
                     config["depositos"].append(nuevo_depo)
                     guardar_todo(inv, config, logs); st.rerun()
 
         # --- REPORTE E HISTORIAL ---
         st.divider()
-        st.subheader("📝 Reportes e Historial")
+        st.subheader("Reportes e Historial")
         if logs or inv:
             df_mov = pd.DataFrame(logs).reindex(columns=['fecha', 'usuario', 'accion', 'detalle'])
-            df_stk = pd.DataFrame([{"Depo": v['deposito'], "Marca": v['marca'], "Código": k.split('_')[-1], "Cant": v['stock']} for k, v in inv.items()])
+            df_stk = pd.DataFrame([{"Depo": v['deposito'], "Marca": v['marca'], "Codigo": k.split('_')[-1], "Cant": v['stock']} for k, v in inv.items()])
             buffer = io.BytesIO()
             with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
                 df_stk.to_excel(writer, index=False, sheet_name='STOCK')
                 df_mov.to_excel(writer, index=False, sheet_name='LOGS')
-            st.download_button("📥 DESCARGAR EXCEL", buffer.getvalue(), f"Reporte_{datetime.now().strftime('%d_%m')}.xlsx", use_container_width=True)
+            st.download_button("DESCARGAR EXCEL", buffer.getvalue(), f"Reporte_{datetime.now().strftime('%d_%m')}.xlsx", use_container_width=True)
 
-        with st.expander("👁️ Ver movimientos"):
+        with st.expander("Ver movimientos"):
             for l in logs[:15]:
-                st.markdown(f"**👤 {l.get('usuario','SISTEMA')}**: {l['detalle']}<br><small>{l['fecha']}</small>", unsafe_allow_html=True)
+                st.markdown(f"**{l.get('usuario','SISTEMA')}**: {l['detalle']}  \n<small>{l['fecha']}</small>", unsafe_allow_html=True)
                 st.divider()
-            if st.button("🗑️ Limpiar historial"):
+            if st.button("Limpiar historial"):
                 logs = []; guardar_todo(inv, config, logs); st.rerun()
-```
