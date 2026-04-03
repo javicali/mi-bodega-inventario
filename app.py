@@ -11,51 +11,24 @@ SCOPE = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/au
 
 def conectar_google():
     try:
+        # 1. Si estamos en la NUBE (Streamlit Secrets)
         if "gcp_service_account" in st.secrets:
-            # 1. Cargamos los secretos como un diccionario
             creds_dict = dict(st.secrets["gcp_service_account"])
             
-            # 2. Limpieza de la llave (lo que ya hicimos antes)
+            # REPARACIÓN DE LLAVE: Limpia espacios y saltos de línea
             raw_key = creds_dict["private_key"].strip().replace("\\n", "\n")
             creds_dict["private_key"] = raw_key
             
-            # 3. ¡EL CAMBIO CLAVE! 
-            # Usamos 'from_json_keyfile_dict' en lugar de 'from_json_keyfile_name'
+            # USAMOS EL MÉTODO CORRECTO PARA DICCIONARIOS
             creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, SCOPE)
-            
+        
+        # 2. Si estamos en la iMac (Local)
         else:
-            # Esto se queda igual para cuando pruebes en tu iMac
             creds = ServiceAccountCredentials.from_json_keyfile_name('creds.json', SCOPE)
             
         client = gspread.authorize(creds)
         return client.open(NOMBRE_EXCEL)
         
-    except Exception as e:
-        st.error(f"❌ Error de conexión: {e}")
-        return None
-
-def conectar_google():
-    try:
-        if "gcp_service_account" in st.secrets:
-            creds_dict = dict(st.secrets["gcp_service_account"])
-            
-            # --- CURACIÓN MATEMÁTICA DE LA LLAVE ---
-            raw_key = creds_dict["private_key"].strip().replace("\\n", "\n")
-            
-            # Este truco añade los "=" que faltan al final si la cuenta no da múltiplo de 4
-            # Es lo que soluciona el error "number of data characters cannot be 1 more..."
-            missing_padding = len(raw_key) % 4
-            if missing_padding:
-                raw_key += '=' * (4 - missing_padding)
-            
-            creds_dict["private_key"] = raw_key
-            
-            creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, SCOPE)
-        else:
-            creds = ServiceAccountCredentials.from_json_keyfile_name('creds.json', SCOPE)
-            
-        client = gspread.authorize(creds)
-        return client.open(NOMBRE_EXCEL)
     except Exception as e:
         st.error(f"❌ Error de conexión: {e}")
         return None
