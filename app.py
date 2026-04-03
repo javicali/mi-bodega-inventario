@@ -53,7 +53,6 @@ def mostrar_item_edicion(id_f, info, sufijo):
         c2.markdown(f"📦 **{info['stock']}**\n<small>unidades</small>", unsafe_allow_html=True)
         
         with c3:
-            # Lógica de mensajes de confirmación con colores
             key_aviso = f"aviso_{sufijo}_{id_f}"
             if key_aviso in st.session_state:
                 tipo, msg = st.session_state[key_aviso]
@@ -139,7 +138,7 @@ else:
             if it_p:
                 for k, v in sorted(it_p.items()): mostrar_item_edicion(k, v, f"p_tab_{i}")
 
-# --- SIDEBAR ---
+# --- SIDEBAR (BARRA LATERAL) ---
 with st.sidebar:
     st.header("🔐 Acceso")
     if not st.session_state.edit_mode:
@@ -158,6 +157,7 @@ with st.sidebar:
             st.session_state.edit_mode = False; st.session_state.modo_panel = False; st.rerun()
 
         st.divider()
+        # SECCIÓN PARA TODOS LOS USUARIOS LOGUEADOS
         with st.expander("🆕 Nuevo Código"):
             n_m = st.selectbox("Marca", config["marcas"])
             n_c = st.text_input("Código").upper().strip()
@@ -168,7 +168,22 @@ with st.sidebar:
                     registrar_log(logs, st.session_state.usuario_actual, "CREACION", f"Nuevo: {n_c}")
                     guardar_todo(inv, config, logs); st.rerun()
 
-        if st.session_state.usuario_actual == "ADMIN":
+        # SECCIÓN SOLO PARA EL ADMINISTRADOR (Historial, Usuarios, Depósitos, Reportes)
+        if st.session_state.usuario_actual.upper() == "ADMIN":
+            st.markdown("### 👑 Administración")
+            
+            with st.expander("👥 Gestión Usuarios"):
+                nu = st.text_input("Nuevo Usuario").upper().strip()
+                np = st.text_input("Nueva Clave", type="password")
+                if st.button("➕ Crear Usuario"):
+                    if nu: config["usuarios"][nu] = np; guardar_todo(inv, config, logs); st.rerun()
+                st.divider()
+                st.write("Lista:")
+                for u in list(config["usuarios"].keys()):
+                    if u != "ADMIN":
+                        if st.button(f"🗑️ Eliminar {u}"):
+                            del config["usuarios"][u]; guardar_todo(inv, config, logs); st.rerun()
+
             with st.expander("🏷️ Marcas y Depósitos"):
                 nm = st.text_input("Añadir Marca").upper().strip()
                 if st.button("➕ Marca"):
@@ -190,11 +205,18 @@ with st.sidebar:
                         registrar_log(logs, st.session_state.usuario_actual, "TRASLADO", f"{tq} {tc} ({to}->{td})")
                         guardar_todo(inv, config, logs); st.rerun()
 
-            with st.expander("📝 Reportes"):
+            with st.expander("📝 Historial y Reportes"):
                 if inv:
                     df_stk = pd.DataFrame([{"Depo": v['deposito'], "Marca": v['marca'], "Código": k.split('_')[-1], "Cant": v['stock']} for k, v in inv.items()])
                     buffer = io.BytesIO()
                     with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
                         df_stk.to_excel(writer, index=False, sheet_name='STOCK')
-                    st.download_button("📥 EXCEL", buffer.getvalue(), "Reporte.xlsx")
-                for l in logs[:10]: st.write(f"<small>{l['fecha']} | {l['detalle']}</small>", unsafe_allow_html=True)
+                    st.download_button("📥 DESCARGAR EXCEL", buffer.getvalue(), "Reporte_Inventario.xlsx", use_container_width=True)
+                
+                st.divider()
+                if st.button("🗑️ Limpiar Historial"):
+                    logs = []; guardar_todo(inv, config, logs); st.rerun()
+                
+                for l in logs[:15]:
+                    st.write(f"**{l['usuario']}**: {l['detalle']}  \n<small>{l['fecha']}</small>", unsafe_allow_html=True)
+                    st.divider()
