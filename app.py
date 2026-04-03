@@ -58,16 +58,16 @@ if busq:
 st.divider()
 
 if not st.session_state.mostrar_panel:
-    if st.button("🚀 ENTRAR AL CONTROL", use_container_width=True, type="primary"):
+    if st.button("🚀 ENTRAR AL CONTROL", use_container_width=True, type="primary", key="btn_main_entrar"):
         st.session_state.mostrar_panel = True
         st.rerun()
 else:
-    if st.button("⬅️ VOLVER", use_container_width=True):
+    if st.button("⬅️ VOLVER", use_container_width=True, key="btn_main_volver"):
         st.session_state.mostrar_panel = False
         st.rerun()
 
 if st.session_state.mostrar_panel:
-    dep_actual = st.selectbox("📍 Depósito:", config["depositos"])
+    dep_actual = st.selectbox("📍 Depósito:", config["depositos"], key="sel_dep_actual")
     tabs = st.tabs(config["marcas"] + ["⚠️ AGOTADOS"])
     
     for i, nombre_tab in enumerate(config["marcas"] + ["⚠️ AGOTADOS"]):
@@ -96,30 +96,27 @@ if st.session_state.mostrar_panel:
                             if b3.button("🗑️", key=f"b3_{key_id}"): st.session_state[f"ask_del_{key_id}"] = True
 
                             if st.session_state.get(f"ask_add_{key_id}"):
-                                if st.button(f"Confirmar +{cant}?", key=f"conf_add_{key_id}", type="primary", use_container_width=True):
+                                if st.button(f"OK +{cant}?", key=f"conf_add_{key_id}", type="primary", use_container_width=True):
                                     inv[id_f]["stock"] += cant
                                     logs = registrar_log(logs, st.session_state.usuario_actual, "SUMA", f"+{cant} {cod_l}")
-                                    guardar_todo(inv, config, logs)
-                                    del st.session_state[f"ask_add_{key_id}"]; st.rerun()
+                                    guardar_todo(inv, config, logs); del st.session_state[f"ask_add_{key_id}"]; st.rerun()
 
                             if st.session_state.get(f"ask_sub_{key_id}"):
-                                if st.button(f"Confirmar -{cant}?", key=f"conf_sub_{key_id}", type="primary", use_container_width=True):
+                                if st.button(f"OK -{cant}?", key=f"conf_sub_{key_id}", type="primary", use_container_width=True):
                                     inv[id_f]["stock"] -= cant
                                     logs = registrar_log(logs, st.session_state.usuario_actual, "RESTA", f"-{cant} {cod_l}")
-                                    guardar_todo(inv, config, logs)
-                                    del st.session_state[f"ask_sub_{key_id}"]; st.rerun()
+                                    guardar_todo(inv, config, logs); del st.session_state[f"ask_sub_{key_id}"]; st.rerun()
 
                             if st.session_state.get(f"ask_del_{key_id}"):
-                                if st.button("🚨 ELIMINAR AHORA", key=f"conf_del_{key_id}", type="primary", use_container_width=True):
+                                if st.button("🚨 ELIMINAR", key=f"conf_del_{key_id}", type="primary", use_container_width=True):
                                     del inv[id_f]
-                                    guardar_todo(inv, config, logs)
-                                    del st.session_state[f"ask_del_{key_id}"]; st.rerun()
+                                    guardar_todo(inv, config, logs); del st.session_state[f"ask_del_{key_id}"]; st.rerun()
 
 with st.sidebar:
     st.header("🔐 Acceso")
     if not st.session_state.edit_mode:
-        u_sel = st.selectbox("User", list(config["usuarios"].keys()))
-        p_sel = st.text_input("Pass", type="password")
+        u_sel = st.selectbox("User", list(config["usuarios"].keys()), key="sidebar_u")
+        p_sel = st.text_input("Pass", type="password", key="sidebar_p")
         if st.button("🔓 Entrar", key="btn_login"):
             if config["usuarios"].get(u_sel) == p_sel:
                 st.session_state.edit_mode = True
@@ -131,35 +128,27 @@ with st.sidebar:
         
         st.divider()
         with st.expander("🆕 Nuevo Item"):
-            r_mar = st.selectbox("Marca", config["marcas"], key="sel_reg_marca")
-            r_cod = st.text_input("Cod", key="in_reg_cod").upper().strip()
-            r_dep = st.selectbox("Depo", config["depositos"], key="sel_reg_dep")
-            if st.button("💾 Guardar Item", key="btn_reg_save"):
+            r_mar = st.selectbox("Marca", config["marcas"], key="reg_m")
+            r_cod = st.text_input("Cod", key="reg_c").upper().strip()
+            r_dep = st.selectbox("Depo", config["depositos"], key="reg_d")
+            if st.button("💾 Guardar", key="reg_btn"):
                 if r_cod:
                     inv[f"{r_dep}_{r_cod}"] = {"marca": r_mar, "deposito": r_dep, "stock": 0}
-                    guardar_todo(inv, config, logs); st.success("OK"); st.rerun()
+                    guardar_todo(inv, config, logs); st.rerun()
 
         if st.session_state.usuario_actual == "ADMIN":
-            st.warning("⚡ ADMIN")
-            with st.expander("👥 Usuarios"):
-                un = st.text_input("Nombre Usuario", key="admin_un").upper()
-                up = st.text_input("Clave Usuario", type="password", key="admin_up")
-                if st.button("💾 Crear Acceso", key="btn_admin_user"):
+            st.warning("⚡ PANEL ADMIN")
+            
+            with st.expander("👥 1. Usuarios"):
+                un = st.text_input("Nombre", key="adm_un").upper()
+                up = st.text_input("Clave", type="password", key="adm_up")
+                if st.button("💾 Crear/Modificar", key="adm_btn_u"):
                     if un and up:
-                        config["usuarios"][un] = up; guardar_todo(inv, config, logs); st.rerun()
-            
-            with st.expander("🏷️ Marcas"):
-                nm = st.text_input("Nombre Nueva Marca", key="admin_nm").upper()
-                if st.button("➕ Añadir a Lista", key="btn_admin_brand"):
-                    if nm: config["marcas"].append(nm); guardar_todo(inv, config, logs); st.rerun()
-                mb = st.selectbox("Borrar Marca Existente", config["marcas"], key="admin_mb")
-                if st.button("🗑️ Borrar de Lista", key="btn_admin_del_brand"):
-                    config["marcas"].remove(mb); guardar_todo(inv, config, logs); st.rerun()
-            
-            with st.expander("🏘️ Depósitos"):
-                nd = st.text_input("Nombre Nuevo Depo", key="admin_nd").upper()
-                if st.button("➕ Crear Depósito", key="btn_admin_depo"):
-                    if nd: config["depositos"].append(nd); guardar_todo(inv, config, logs); st.rerun()
-            
-            with st.expander("📜 Historial"):
-                for l in logs: st.write(f"<small>{l['fecha']} - {l['detalle']}</small>", unsafe_allow_html=True)
+                        config["usuarios"][un] = up
+                        guardar_todo(inv, config, logs); st.success("Guardado"); st.rerun()
+                ub = st.selectbox("Eliminar:", [u for u in config["usuarios"].keys() if u != "ADMIN"], key="adm_ub")
+                if st.button("🗑️ Borrar Usuario", key="adm_btn_ub"):
+                    del config["usuarios"][ub]; guardar_todo(inv, config, logs); st.rerun()
+
+            with st.expander("🏷️ 2. Marcas"):
+                nm = st.text_input("Nueva Marca", key="adm_nm
