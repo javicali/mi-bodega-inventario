@@ -1,0 +1,25 @@
+{
+    "depositos": [
+        "SETAR",
+        "JYMI",
+        "ARCANI"
+    ],
+    "trabajadores": [
+        "ADMIN",
+        "JUAN",
+        "PEDRO",
+        "ESTHER"
+    ],
+    "usuarios": {
+        "ADMIN": "admin123",
+        "ESTHER": "5678"
+    },
+    "marcas": [
+        "IRUN",
+        "BOOTY",
+        "LEONESA",
+        "YD",
+        "ELT",
+        "HHP"
+    ]
+}

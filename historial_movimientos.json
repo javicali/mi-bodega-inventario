@@ -1,0 +1,638 @@
+[
+    {
+        "fecha": "03/04/2026 11:07",
+        "usuario": "ESTHER",
+        "accion": "INGRESO",
+        "detalle": "4 YD CALIZY"
+    },
+    {
+        "fecha": "03/04/2026 11:07",
+        "usuario": "ESTHER",
+        "accion": "CREACI\u00d3N",
+        "detalle": "YD CALIZY"
+    },
+    {
+        "fecha": "03/04/2026 11:05",
+        "usuario": "ESTHER",
+        "accion": "SALIDA",
+        "detalle": "1 IRUN ZZZ"
+    },
+    {
+        "fecha": "03/04/2026 11:05",
+        "usuario": "ESTHER",
+        "accion": "SALIDA",
+        "detalle": "1 IRUN ZZZ"
+    },
+    {
+        "fecha": "03/04/2026 11:04",
+        "usuario": "ESTHER",
+        "accion": "INGRESO",
+        "detalle": "4 IRUN ZZZ"
+    },
+    {
+        "fecha": "03/04/2026 11:04",
+        "usuario": "ESTHER",
+        "accion": "INGRESO",
+        "detalle": "4 IRUN X2234"
+    },
+    {
+        "fecha": "03/04/2026 11:04",
+        "usuario": "ESTHER",
+        "accion": "INGRESO",
+        "detalle": "3 LEONESA 2025"
+    },
+    {
+        "fecha": "03/04/2026 10:58",
+        "usuario": "ADMIN",
+        "accion": "ELIMINACI\u00d3N",
+        "detalle": "Item 2022 de LEONESA en ARCANI"
+    },
+    {
+        "fecha": "03/04/2026 10:55",
+        "usuario": "ADMIN",
+        "accion": "INGRESO",
+        "detalle": "3 IRUN AAA en SETAR"
+    },
+    {
+        "fecha": "03/04/2026 10:54",
+        "usuario": "ADMIN",
+        "accion": "INGRESO",
+        "detalle": "5 IRUN BOL2022 en SETAR"
+    },
+    {
+        "fecha": "03/04/2026 10:52",
+        "usuario": "ADMIN",
+        "accion": "INGRESO",
+        "detalle": "1 IRUN ZZZ en ARCANI"
+    },
+    {
+        "fecha": "03/04/2026 10:52",
+        "usuario": "ADMIN",
+        "accion": "INGRESO",
+        "detalle": "1 IRUN ZZZ en ARCANI"
+    },
+    {
+        "fecha": "03/04/2026 10:51",
+        "usuario": "ADMIN",
+        "accion": "SALIDA",
+        "detalle": "7 LEONESA 2022 en ARCANI"
+    },
+    {
+        "fecha": "03/04/2026 10:50",
+        "usuario": "ESTHER",
+        "accion": "INGRESO",
+        "detalle": "1 LEONESA 2022 en ARCANI"
+    },
+    {
+        "fecha": "03/04/2026 10:50",
+        "usuario": "ESTHER",
+        "accion": "INGRESO",
+        "detalle": "1 LEONESA 2022 en ARCANI"
+    },
+    {
+        "fecha": "03/04/2026 10:48",
+        "usuario": "ADMIN",
+        "accion": "INGRESO",
+        "detalle": "1 LEONESA 2022 en ARCANI"
+    },
+    {
+        "fecha": "03/04/2026 10:48",
+        "usuario": "ADMIN",
+        "accion": "INGRESO",
+        "detalle": "1 LEONESA 2022 en ARCANI"
+    },
+    {
+        "fecha": "03/04/2026 10:48",
+        "usuario": "ADMIN",
+        "accion": "INGRESO",
+        "detalle": "1 LEONESA 2022 en ARCANI"
+    },
+    {
+        "fecha": "03/04/2026 10:48",
+        "usuario": "ADMIN",
+        "accion": "INGRESO",
+        "detalle": "1 LEONESA 2022 en ARCANI"
+    },
+    {
+        "fecha": "03/04/2026 10:47",
+        "usuario": "ADMIN",
+        "accion": "INGRESO",
+        "detalle": "1 LEONESA 2025 en ARCANI"
+    },
+    {
+        "fecha": "03/04/2026 10:47",
+        "usuario": "ADMIN",
+        "accion": "INGRESO",
+        "detalle": "1 LEONESA 2022 en ARCANI"
+    },
+    {
+        "fecha": "03/04/2026 10:47",
+        "usuario": "ADMIN",
+        "accion": "CREACI\u00d3N",
+        "detalle": "LEONESA 2022 en ARCANI"
+    },
+    {
+        "fecha": "03/04/2026 10:47",
+        "usuario": "ADMIN",
+        "accion": "CREACI\u00d3N",
+        "detalle": "LEONESA 2022 en ARCANI"
+    },
+    {
+        "fecha": "03/04/2026 10:44",
+        "usuario": "ESTHER",
+        "accion": "CREACI\u00d3N",
+        "detalle": "LEONESA 2025 en ARCANI"
+    },
+    {
+        "fecha": "03/04/2026 10:39",
+        "usuario": "ADMIN",
+        "accion": "LIMPIEZA",
+        "detalle": "Se eliminaron 7 items huerfanos"
+    },
+    {
+        "fecha": "03/04/2026 10:35",
+        "usuario": "ADMIN",
+        "accion": "INGRESO",
+        "detalle": "3 NIKE WWW en ARCANI"
+    },
+    {
+        "fecha": "03/04/2026 10:34",
+        "usuario": "ADMIN",
+        "accion": "CREACI\u00d3N",
+        "detalle": "NIKE WWW22 en ARCANI"
+    },
+    {
+        "fecha": "03/04/2026 10:33",
+        "usuario": "ADMIN",
+        "accion": "CREACI\u00d3N",
+        "detalle": "NIKE WWW en ARCANI"
+    },
+    {
+        "fecha": "03/04/2026 10:30",
+        "usuario": "ADMIN",
+        "accion": "INGRESO",
+        "detalle": "2 IRUN BRS3030 en JYMI"
+    },
+    {
+        "fecha": "03/04/2026 10:29",
+        "usuario": "ESTHER",
+        "accion": "SALIDA",
+        "detalle": "1 IRUN FFF en SETAR"
+    },
+    {
+        "fecha": "03/04/2026 10:16",
+        "usuario": "ADMIN",
+        "accion": "SALIDA",
+        "detalle": "1 IRUN ZZZ"
+    },
+    {
+        "fecha": "03/04/2026 10:16",
+        "usuario": "ADMIN",
+        "accion": "SALIDA",
+        "detalle": "1 IRUN ZZZ"
+    },
+    {
+        "fecha": "03/04/2026 10:16",
+        "usuario": "ADMIN",
+        "accion": "SALIDA",
+        "detalle": "1 IRUN ZZZ"
+    },
+    {
+        "fecha": "03/04/2026 10:16",
+        "usuario": "ADMIN",
+        "accion": "SALIDA",
+        "detalle": "1 IRUN ZZZ"
+    },
+    {
+        "fecha": "03/04/2026 10:16",
+        "usuario": "ADMIN",
+        "accion": "SALIDA",
+        "detalle": "1 IRUN ZZZ"
+    },
+    {
+        "fecha": "03/04/2026 10:16",
+        "usuario": "ADMIN",
+        "accion": "SALIDA",
+        "detalle": "1 IRUN ZZZ"
+    },
+    {
+        "fecha": "03/04/2026 10:16",
+        "usuario": "ADMIN",
+        "accion": "SALIDA",
+        "detalle": "1 IRUN ZZZ"
+    },
+    {
+        "fecha": "03/04/2026 10:16",
+        "usuario": "ADMIN",
+        "accion": "SALIDA",
+        "detalle": "1 IRUN ZZZ"
+    },
+    {
+        "fecha": "03/04/2026 10:16",
+        "usuario": "ADMIN",
+        "accion": "SALIDA",
+        "detalle": "1 IRUN ZZZ"
+    },
+    {
+        "fecha": "03/04/2026 10:16",
+        "usuario": "ADMIN",
+        "accion": "SALIDA",
+        "detalle": "1 IRUN ZZZ"
+    },
+    {
+        "fecha": "03/04/2026 10:16",
+        "usuario": "ADMIN",
+        "accion": "INGRESO",
+        "detalle": "1 IRUN ZZZ"
+    },
+    {
+        "fecha": "03/04/2026 10:16",
+        "usuario": "ADMIN",
+        "accion": "SALIDA",
+        "detalle": "1 IRUN ZZZ"
+    },
+    {
+        "fecha": "03/04/2026 10:16",
+        "usuario": "ADMIN",
+        "accion": "SALIDA",
+        "detalle": "1 IRUN ZZZ"
+    },
+    {
+        "fecha": "03/04/2026 10:16",
+        "usuario": "ADMIN",
+        "accion": "SALIDA",
+        "detalle": "1 IRUN ZZZ"
+    },
+    {
+        "fecha": "03/04/2026 10:10",
+        "usuario": "ADMIN",
+        "accion": "INGRESO",
+        "detalle": "3 IRUN DANY04 en SETAR"
+    },
+    {
+        "fecha": "03/04/2026 10:07",
+        "usuario": "ADMIN",
+        "accion": "INGRESO",
+        "detalle": "1 IRUN DANY04"
+    },
+    {
+        "fecha": "03/04/2026 10:07",
+        "usuario": "ADMIN",
+        "accion": "INGRESO",
+        "detalle": "1 IRUN DANY04"
+    },
+    {
+        "fecha": "03/04/2026 10:07",
+        "usuario": "ADMIN",
+        "accion": "INGRESO",
+        "detalle": "1 IRUN DANY04"
+    },
+    {
+        "fecha": "03/04/2026 10:07",
+        "usuario": "ADMIN",
+        "accion": "SALIDA",
+        "detalle": "1 IRUN DANY04"
+    },
+    {
+        "fecha": "03/04/2026 10:07",
+        "usuario": "ADMIN",
+        "accion": "SALIDA",
+        "detalle": "1 IRUN DANY04"
+    },
+    {
+        "fecha": "03/04/2026 10:07",
+        "usuario": "ADMIN",
+        "accion": "INGRESO",
+        "detalle": "1 IRUN DANY04"
+    },
+    {
+        "fecha": "03/04/2026 10:07",
+        "usuario": "ADMIN",
+        "accion": "INGRESO",
+        "detalle": "1 IRUN DANY04"
+    },
+    {
+        "fecha": "03/04/2026 10:07",
+        "usuario": "ADMIN",
+        "accion": "INGRESO",
+        "detalle": "1 IRUN DANY04"
+    },
+    {
+        "fecha": "03/04/2026 10:07",
+        "usuario": "ADMIN",
+        "accion": "INGRESO",
+        "detalle": "1 IRUN DANY04"
+    },
+    {
+        "fecha": "03/04/2026 10:07",
+        "usuario": "ADMIN",
+        "accion": "INGRESO",
+        "detalle": "1 IRUN DANY04"
+    },
+    {
+        "fecha": "03/04/2026 10:07",
+        "usuario": "ADMIN",
+        "accion": "INGRESO",
+        "detalle": "1 IRUN DANY04"
+    },
+    {
+        "fecha": "03/04/2026 10:07",
+        "usuario": "ADMIN",
+        "accion": "CREACI\u00d3N",
+        "detalle": "IRUN DANY04 en SETAR"
+    },
+    {
+        "fecha": "03/04/2026 10:07",
+        "usuario": "ADMIN",
+        "accion": "CREACI\u00d3N",
+        "detalle": "IRUN DANY04 en SETAR"
+    },
+    {
+        "fecha": "03/04/2026 09:51",
+        "usuario": "ESTHER",
+        "accion": "INGRESO",
+        "detalle": "8 ELT DAN2344 (SETAR)"
+    },
+    {
+        "fecha": "03/04/2026 09:51",
+        "usuario": "ADMIN",
+        "accion": "INGRESO",
+        "detalle": "4 ELT DAN2344 (SETAR)"
+    },
+    {
+        "fecha": "03/04/2026 09:49",
+        "usuario": "ADMIN",
+        "accion": "INGRESO",
+        "detalle": "1 IRUN BOL2022 (SETAR)"
+    },
+    {
+        "fecha": "03/04/2026 09:49",
+        "usuario": "ADMIN",
+        "accion": "INGRESO",
+        "detalle": "1 IRUN BOL2022 (SETAR)"
+    },
+    {
+        "fecha": "03/04/2026 09:49",
+        "usuario": "ADMIN",
+        "accion": "INGRESO",
+        "detalle": "1 IRUN BOL2022 (SETAR)"
+    },
+    {
+        "fecha": "03/04/2026 09:49",
+        "usuario": "ADMIN",
+        "accion": "INGRESO",
+        "detalle": "1 IRUN BOL2022 (SETAR)"
+    },
+    {
+        "fecha": "03/04/2026 09:49",
+        "usuario": "ADMIN",
+        "accion": "INGRESO",
+        "detalle": "1 IRUN BOL2022 (SETAR)"
+    },
+    {
+        "fecha": "03/04/2026 09:49",
+        "usuario": "ADMIN",
+        "accion": "INGRESO",
+        "detalle": "1 IRUN BOL2022 (SETAR)"
+    },
+    {
+        "fecha": "03/04/2026 09:49",
+        "usuario": "ADMIN",
+        "accion": "INGRESO",
+        "detalle": "1 IRUN BOL2022 (SETAR)"
+    },
+    {
+        "fecha": "03/04/2026 09:49",
+        "usuario": "ADMIN",
+        "accion": "INGRESO",
+        "detalle": "1 IRUN BOL2022 (SETAR)"
+    },
+    {
+        "fecha": "03/04/2026 09:49",
+        "usuario": "ADMIN",
+        "accion": "INGRESO",
+        "detalle": "1 IRUN BOL2022 (SETAR)"
+    },
+    {
+        "fecha": "03/04/2026 09:49",
+        "usuario": "ADMIN",
+        "accion": "INGRESO",
+        "detalle": "1 IRUN BOL2022 (SETAR)"
+    },
+    {
+        "fecha": "03/04/2026 09:49",
+        "usuario": "ADMIN",
+        "accion": "INGRESO",
+        "detalle": "1 IRUN BOL2022 (SETAR)"
+    },
+    {
+        "fecha": "03/04/2026 09:49",
+        "usuario": "ADMIN",
+        "accion": "INGRESO",
+        "detalle": "1 IRUN BOL2022 (SETAR)"
+    },
+    {
+        "fecha": "03/04/2026 09:49",
+        "usuario": "ADMIN",
+        "accion": "INGRESO",
+        "detalle": "1 IRUN BOL2022 (SETAR)"
+    },
+    {
+        "fecha": "03/04/2026 09:49",
+        "usuario": "ADMIN",
+        "accion": "INGRESO",
+        "detalle": "1 IRUN BOL2022 (SETAR)"
+    },
+    {
+        "fecha": "03/04/2026 09:49",
+        "usuario": "ADMIN",
+        "accion": "INGRESO",
+        "detalle": "1 IRUN BOL2022 (SETAR)"
+    },
+    {
+        "fecha": "03/04/2026 09:49",
+        "usuario": "ADMIN",
+        "accion": "INGRESO",
+        "detalle": "1 IRUN BOL2022 (SETAR)"
+    },
+    {
+        "fecha": "03/04/2026 09:49",
+        "usuario": "ADMIN",
+        "accion": "INGRESO",
+        "detalle": "1 IRUN BOL2022 (SETAR)"
+    },
+    {
+        "fecha": "03/04/2026 09:49",
+        "usuario": "ADMIN",
+        "accion": "INGRESO",
+        "detalle": "1 IRUN AAA (SETAR)"
+    },
+    {
+        "fecha": "03/04/2026 09:49",
+        "usuario": "ADMIN",
+        "accion": "INGRESO",
+        "detalle": "1 IRUN BOL2022 (SETAR)"
+    },
+    {
+        "fecha": "03/04/2026 09:49",
+        "usuario": "ADMIN",
+        "accion": "INGRESO",
+        "detalle": "1 IRUN BOL2022 (SETAR)"
+    },
+    {
+        "fecha": "03/04/2026 09:49",
+        "usuario": "ADMIN",
+        "accion": "INGRESO",
+        "detalle": "1 IRUN BOL2022 (SETAR)"
+    },
+    {
+        "fecha": "03/04/2026 09:49",
+        "usuario": "ADMIN",
+        "accion": "INGRESO",
+        "detalle": "1 IRUN BOL2022 (SETAR)"
+    },
+    {
+        "fecha": "03/04/2026 09:49",
+        "usuario": "ADMIN",
+        "accion": "INGRESO",
+        "detalle": "1 IRUN BOL2022 (SETAR)"
+    },
+    {
+        "fecha": "03/04/2026 09:48",
+        "usuario": "ADMIN",
+        "accion": "INGRESO",
+        "detalle": "1 IRUN BOL2022 (SETAR)"
+    },
+    {
+        "fecha": "03/04/2026 09:48",
+        "usuario": "ADMIN",
+        "accion": "INGRESO",
+        "detalle": "1 IRUN BOL2022 (SETAR)"
+    },
+    {
+        "fecha": "03/04/2026 09:48",
+        "usuario": "ADMIN",
+        "accion": "INGRESO",
+        "detalle": "1 IRUN BOL2022 (SETAR)"
+    },
+    {
+        "fecha": "03/04/2026 09:48",
+        "usuario": "ADMIN",
+        "accion": "INGRESO",
+        "detalle": "1 IRUN BOL2022 (SETAR)"
+    },
+    {
+        "fecha": "03/04/2026 09:48",
+        "usuario": "ADMIN",
+        "accion": "INGRESO",
+        "detalle": "1 ELT DAN2344 (SETAR)"
+    },
+    {
+        "fecha": "03/04/2026 09:48",
+        "usuario": "ADMIN",
+        "accion": "INGRESO",
+        "detalle": "1 ELT DAN2344 (SETAR)"
+    },
+    {
+        "fecha": "03/04/2026 09:48",
+        "usuario": "ADMIN",
+        "accion": "INGRESO",
+        "detalle": "1 ELT DAN2344 (SETAR)"
+    },
+    {
+        "fecha": "03/04/2026 09:48",
+        "usuario": "ADMIN",
+        "accion": "INGRESO",
+        "detalle": "1 ELT DAN2344 (SETAR)"
+    },
+    {
+        "fecha": "03/04/2026 09:48",
+        "usuario": "ADMIN",
+        "accion": "INGRESO",
+        "detalle": "1 ELT DAN2344 (SETAR)"
+    },
+    {
+        "fecha": "03/04/2026 09:48",
+        "usuario": "ESTHER",
+        "accion": "INGRESO",
+        "detalle": "8 ELT DAN2344 (SETAR)"
+    },
+    {
+        "fecha": "03/04/2026 09:48",
+        "usuario": "ESTHER",
+        "accion": "INGRESO",
+        "detalle": "8 ELT DAN2344 (SETAR)"
+    },
+    {
+        "fecha": "03/04/2026 09:48",
+        "usuario": "ESTHER",
+        "accion": "INGRESO",
+        "detalle": "8 ELT DAN2344 (SETAR)"
+    },
+    {
+        "fecha": "03/04/2026 09:48",
+        "usuario": "ESTHER",
+        "accion": "INGRESO",
+        "detalle": "8 ELT DAN2344 (SETAR)"
+    },
+    {
+        "fecha": "03/04/2026 09:48",
+        "usuario": "ESTHER",
+        "accion": "INGRESO",
+        "detalle": "1 IRUN BOL2022 (SETAR)"
+    },
+    {
+        "fecha": "03/04/2026 09:48",
+        "usuario": "ESTHER",
+        "accion": "INGRESO",
+        "detalle": "1 IRUN BOL2022 (SETAR)"
+    },
+    {
+        "fecha": "03/04/2026 09:48",
+        "usuario": "ESTHER",
+        "accion": "INGRESO",
+        "detalle": "1 IRUN BOL2022 (SETAR)"
+    },
+    {
+        "fecha": "03/04/2026 09:48",
+        "usuario": "ESTHER",
+        "accion": "INGRESO",
+        "detalle": "1 IRUN BOL2022 (SETAR)"
+    },
+    {
+        "fecha": "03/04/2026 09:48",
+        "usuario": "ESTHER",
+        "accion": "INGRESO",
+        "detalle": "8 ELT DAN2344 (SETAR)"
+    },
+    {
+        "fecha": "03/04/2026 09:48",
+        "usuario": "ESTHER",
+        "accion": "INGRESO",
+        "detalle": "8 ELT DAN2344 (SETAR)"
+    },
+    {
+        "fecha": "03/04/2026 09:48",
+        "usuario": "ESTHER",
+        "accion": "INGRESO",
+        "detalle": "8 ELT DAN2344 (SETAR)"
+    },
+    {
+        "fecha": "03/04/2026 09:48",
+        "usuario": "ESTHER",
+        "accion": "INGRESO",
+        "detalle": "8 ELT DAN2344 (SETAR)"
+    },
+    {
+        "fecha": "03/04/2026 09:48",
+        "usuario": "ESTHER",
+        "accion": "INGRESO",
+        "detalle": "8 ELT DAN2344 (SETAR)"
+    },
+    {
+        "fecha": "03/04/2026 09:48",
+        "usuario": "ESTHER",
+        "accion": "INGRESO",
+        "detalle": "8 ELT DAN2344 (SETAR)"
+    }
+]

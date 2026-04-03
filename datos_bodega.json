@@ -1,0 +1,87 @@
+{
+    "BOL2022": {
+        "marca": "IRUN",
+        "stock": 39,
+        "deposito": "SETAR"
+    },
+    "DAN2344": {
+        "marca": "ELT",
+        "stock": 99,
+        "deposito": "SETAR"
+    },
+    "SETAR_ARG2024": {
+        "marca": "IRUN",
+        "deposito": "SETAR",
+        "stock": 4
+    },
+    "JYMI_BRS3030": {
+        "marca": "IRUN",
+        "deposito": "JYMI",
+        "stock": 5
+    },
+    "SETAR_DFR": {
+        "marca": "IRUN",
+        "deposito": "SETAR",
+        "stock": 3
+    },
+    "SETAR_RERTERG": {
+        "marca": "IRUN",
+        "deposito": "SETAR",
+        "stock": 2
+    },
+    "SETAR_FFF": {
+        "marca": "IRUN",
+        "deposito": "SETAR",
+        "stock": 3
+    },
+    "SETAR_DSS": {
+        "marca": "IRUN",
+        "deposito": "SETAR",
+        "stock": 3
+    },
+    "SETAR_HYT": {
+        "marca": "IRUN",
+        "deposito": "SETAR",
+        "stock": 1
+    },
+    "SETAR_ZZZ": {
+        "marca": "IRUN",
+        "deposito": "SETAR",
+        "stock": 4
+    },
+    "SETAR_AAA": {
+        "marca": "IRUN",
+        "deposito": "SETAR",
+        "stock": 4
+    },
+    "SETAR_CFDE": {
+        "marca": "IRUN",
+        "deposito": "SETAR",
+        "stock": 4
+    },
+    "SETAR_X2234": {
+        "marca": "IRUN",
+        "deposito": "SETAR",
+        "stock": 4
+    },
+    "ARCANI_ZZZ": {
+        "marca": "IRUN",
+        "deposito": "ARCANI",
+        "stock": 2
+    },
+    "SETAR_CALI": {
+        "marca": "IRUN",
+        "deposito": "SETAR",
+        "stock": 6
+    },
+    "SETAR_DANY04": {
+        "marca": "IRUN",
+        "deposito": "SETAR",
+        "stock": 10
+    },
+    "ARCANI_2025": {
+        "marca": "LEONESA",
+        "deposito": "ARCANI",
+        "stock": 4
+    }
+}
