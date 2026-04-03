@@ -179,10 +179,24 @@ with st.sidebar:
                 nu_p = st.text_input("Clave", type="password")
                 if st.button("💾 Guardar Usuario"):
                     config["usuarios"][nu_n] = nu_p; guardar_todo(inv, config, logs); st.rerun()
-            with st.expander("🏷️ 2. Marcas"):
+        with st.expander("🏷️ 2. Marcas"):
                 n_m = st.text_input("Nueva Marca").upper().strip()
-                if st.button("➕ Añadir"):
-                    config["marcas"].append(n_m); guardar_todo(inv, config, logs); st.rerun()
+                if st.button("➕ Añadir Marca"):
+                    if n_m and n_m not in config["marcas"]:
+                        config["marcas"].append(n_m)
+                        guardar_todo(inv, config, logs)
+                        st.success(f"✅ Marca {n_m} añadida")
+                        time.sleep(0.5); st.rerun()
+                
+                st.divider()
+                
+                m_b = st.selectbox("Seleccionar marca para eliminar:", config["marcas"])
+                if st.button("🗑️ Borrar Marca Seleccionada", type="secondary"):
+                    if m_b in config["marcas"]:
+                        config["marcas"].remove(m_b)
+                        guardar_todo(inv, config, logs)
+                        st.success(f"🗑️ Marca {m_b} eliminada")
+                        time.sleep(0.5); st.rerun()
             with st.expander("🏘️ 3. Depósitos"):
                 n_d = st.text_input("Nuevo Depósito").upper().strip()
                 if st.button("➕ Crear Depo"):
