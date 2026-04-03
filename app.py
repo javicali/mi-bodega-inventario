@@ -32,7 +32,7 @@ def conectar_google():
         
     except Exception as e:
         st.error(f"❌ Error de conexión: {e}")
-        return None base64
+        return None
 
 def conectar_google():
     try:
