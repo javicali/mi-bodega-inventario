@@ -9,34 +9,20 @@ from datetime import datetime, timedelta
 NOMBRE_EXCEL = "DB_BODEGA_SISTEMA"
 SCOPE = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
 
-import base64
-
-import io  # Añade esto al principio de tu archivo
-
 def conectar_google():
     try:
         if "gcp_service_account" in st.secrets:
-            # Cargamos el diccionario de secretos
-            creds_info = dict(st.secrets["gcp_service_account"])
-            
-            # --- LIMPIEZA QUIRÚRGICA ---
-            # Reemplazamos los saltos de línea de forma que Google los entienda sí o sí
-            if "private_key" in creds_info:
-                creds_info["private_key"] = creds_info["private_key"].replace("\\n", "\n")
-            
-            # Conexión directa usando el diccionario limpio
-            creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_info, SCOPE)
-            
+            creds_dict = dict(st.secrets["gcp_service_account"])
+            # No necesitamos el .replace("\\n", "\n") si usamos las comillas triples,
+            # pero dejarlo no hace daño. 
+            creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, SCOPE)
         else:
-            # Respaldo para tu iMac local
             creds = ServiceAccountCredentials.from_json_keyfile_name('creds.json', SCOPE)
-            
+        
         client = gspread.authorize(creds)
         return client.open(NOMBRE_EXCEL)
-        
     except Exception as e:
-        # Si sigue fallando el padding, imprimimos un mensaje más útil
-        st.error(f"❌ Error de configuración: {e}")
+        st.error(f"❌ Error de conexión: {e}")
         return None
         
 # --- FUNCIONES DE BASE DE DATOS ---
