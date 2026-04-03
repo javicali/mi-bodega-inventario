@@ -11,37 +11,32 @@ SCOPE = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/au
 
 import base64
 
+import io  # Añade esto al principio de tu archivo
+
 def conectar_google():
     try:
         if "gcp_service_account" in st.secrets:
-            # 1. Cargamos los secretos
-            creds_dict = dict(st.secrets["gcp_service_account"])
+            # Cargamos el diccionario de secretos
+            creds_info = dict(st.secrets["gcp_service_account"])
             
-            # 2. LIMPIEZA PROFUNDA DE LA LLAVE
-            raw_key = creds_dict["private_key"]
-            # Quitamos espacios al principio y al final
-            raw_key = raw_key.strip()
-            # Arreglamos los saltos de línea
-            raw_key = raw_key.replace("\\n", "\n")
+            # --- LIMPIEZA QUIRÚRGICA ---
+            # Reemplazamos los saltos de línea de forma que Google los entienda sí o sí
+            if "private_key" in creds_info:
+                creds_info["private_key"] = creds_info["private_key"].replace("\\n", "\n")
             
-            # 3. REPARACIÓN MATEMÁTICA DEL PADDING
-            # Base64 necesita que la longitud sea múltiplo de 4
-            rem = len(raw_key) % 4
-            if rem > 0:
-                raw_key += "=" * (4 - rem)
+            # Conexión directa usando el diccionario limpio
+            creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_info, SCOPE)
             
-            creds_dict["private_key"] = raw_key
-            
-            # 4. CONEXIÓN POR DICCIONARIO
-            creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, SCOPE)
         else:
-            # Respaldo para tu iMac
+            # Respaldo para tu iMac local
             creds = ServiceAccountCredentials.from_json_keyfile_name('creds.json', SCOPE)
             
         client = gspread.authorize(creds)
         return client.open(NOMBRE_EXCEL)
+        
     except Exception as e:
-        st.error(f"❌ Error de conexión: {e}")
+        # Si sigue fallando el padding, imprimimos un mensaje más útil
+        st.error(f"❌ Error de configuración: {e}")
         return None
         
 # --- FUNCIONES DE BASE DE DATOS ---
