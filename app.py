@@ -55,36 +55,41 @@ def mostrar_item_edicion(id_f, info, sufijo):
         c2.markdown(f"📦 **{info['stock']}**\n<small>{txt_u}</small>", unsafe_allow_html=True)
         
         with c3:
+            # Widget de número (sin intentar resetearlo manualmente por código)
             cant = st.number_input("n", min_value=1, value=1, key=f"n_{sufijo}_{id_f}", label_visibility="collapsed")
             col_btn = st.columns(3)
             if col_btn[0].button("➕", key=f"add_{sufijo}_{id_f}"): st.session_state[f"conf_{sufijo}_{id_f}"] = "S"
             if col_btn[1].button("➖", key=f"sub_{sufijo}_{id_f}", disabled=info['stock']==0): st.session_state[f"conf_{sufijo}_{id_f}"] = "R"
             if col_btn[2].button("🗑️", key=f"del_{sufijo}_{id_f}"): st.session_state[f"conf_{sufijo}_{id_f}"] = "B"
 
-            estado = st.session_state.get(f"conf_{sufijo}_{id_f}")
+            # Lógica de confirmación
+            key_confirmacion = f"conf_{sufijo}_{id_f}"
+            estado = st.session_state.get(key_confirmacion)
+            
             if estado:
-                if st.button("CONFIRMAR OK", key=f"ok_{sufijo}_{id_f}", type="primary"):
+                if st.button("CONFIRMAR OK", key=f"btn_ok_{sufijo}_{id_f}", type="primary"):
                     if estado == "S": inv[id_f]["stock"] += cant
                     elif estado == "R": inv[id_f]["stock"] -= cant
-                    elif estado == "B": del inv[id_f]
+                    elif estado == "B": 
+                        if id_f in inv: del inv[id_f]
+                    
                     guardar_todo(inv, config, logs)
-                    if f"n_{sufijo}_{id_f}" in st.session_state: st.session_state[f"n_{sufijo}_{id_f}"] = 1
-                    del st.session_state[f"conf_{sufijo}_{id_f}"]
+                    # Limpiamos solo el estado de confirmación
+                    del st.session_state[key_confirmacion]
                     st.rerun()
 
 # --- LÓGICA DE INTERFAZ ---
 
 if not st.session_state.modo_panel:
-    # ================= PÁGINA DE CONSULTA PÚBLICA =================
     st.title("🏢 Consulta de Inventario")
     
     st.subheader("🔍 Buscar por Código")
     c1, c2 = st.columns([4, 1])
     with c1:
-        busq = st.text_input("Ingrese el código:", placeholder="Ej: 501...").upper().strip()
+        busq = st.text_input("Ingrese el código:", placeholder="Ej: 501...", key="search_main").upper().strip()
     with c2:
         st.write("##")
-        btn_l = st.button("🔍 Buscar")
+        btn_l = st.button("🔍 Buscar", key="btn_search_main")
     
     if busq:
         encontrados = {k: v for k, v in inv.items() if (k.split("_", 1)[1] if "_" in k else k) == busq}
@@ -105,21 +110,20 @@ if not st.session_state.modo_panel:
             st.session_state.ver_stock_general = False
             st.rerun()
         
-        dep_v = st.selectbox("Seleccione Depósito:", config["depositos"])
+        dep_v = st.selectbox("Seleccione Depósito:", config["depositos"], key="sel_dep_view")
         tab_v = st.tabs(config["marcas"])
         for i, m_nom in enumerate(config["marcas"]):
             with tab_v[i]:
-                items_v = {k: v for k, v in inv.items() if v['marca'] == m_nom and v['deposito'] == dep_v and v['stock'] > 0}
+                items_v = {k: v for k, v in inv.items() if v.get('marca') == m_nom and v.get('deposito') == dep_v and v.get('stock', 0) > 0}
                 if items_v:
                     for id_f, info in sorted(items_v.items()): mostrar_item_lectura(id_f, info)
                 else: st.write("Sin existencias.")
 
 else:
-    # ================= PÁGINA DE CONTROL (SOLO AUTORIZADOS) =================
     st.title("🛠️ Panel de Modificación")
-    st.info(f"Sesión activa: **{st.session_state.usuario_actual}**")
+    st.info(f"Sesión activa: **{st.session_state.get('usuario_actual', 'Admin')}**")
     
-    busq_m = st.text_input("🔎 BUSCAR CÓDIGO PARA EDITAR:", placeholder="Código...").upper().strip()
+    busq_m = st.text_input("🔎 BUSCAR CÓDIGO PARA EDITAR:", placeholder="Código...", key="search_edit").upper().strip()
 
     if busq_m:
         items_f = {k: v for k, v in inv.items() if (k.split("_", 1)[1] if "_" in k else k) == busq_m}
@@ -127,22 +131,22 @@ else:
             for id_f, info in items_f.items(): mostrar_item_edicion(id_f, info, "busq")
         else: st.error("No encontrado.")
     else:
-        dep_sel = st.selectbox("📍 Depósito de Trabajo:", config["depositos"])
+        dep_sel = st.selectbox("📍 Depósito de Trabajo:", config["depositos"], key="sel_dep_edit")
         tabs_e = st.tabs(config["marcas"] + ["⚠️ AGOTADOS"])
         for i, m_e in enumerate(config["marcas"] + ["⚠️ AGOTADOS"]):
             with tabs_e[i]:
                 if m_e == "⚠️ AGOTADOS":
-                    items = {k: v for k, v in inv.items() if v['stock'] == 0 and v['deposito'] == dep_sel}
+                    items = {k: v for k, v in inv.items() if v.get('stock', 0) == 0 and v.get('deposito') == dep_sel}
                 else:
-                    items = {k: v for k, v in inv.items() if v['marca'] == m_e and v['deposito'] == dep_sel and v['stock'] > 0}
+                    items = {k: v for k, v in inv.items() if v.get('marca') == m_e and v.get('deposito') == dep_sel and v.get('stock', 0) > 0}
                 for id_f, info in sorted(items.items()): mostrar_item_edicion(id_f, info, "tab")
 
 # --- SIDEBAR (SISTEMA DE ACCESO) ---
 with st.sidebar:
     st.header("🔐 Acceso Privado")
     if not st.session_state.edit_mode:
-        u = st.selectbox("Usuario", list(config["usuarios"].keys()))
-        p = st.text_input("Clave", type="password")
+        u = st.selectbox("Usuario", list(config["usuarios"].keys()), key="user_sel")
+        p = st.text_input("Clave", type="password", key="pass_input")
         if st.button("🔓 Desbloquear"):
             if config["usuarios"].get(u) == p:
                 st.session_state.edit_mode = True
@@ -151,7 +155,6 @@ with st.sidebar:
     else:
         st.success(f"👤 {st.session_state.usuario_actual}")
         
-        # Botones de navegación interna en el Sidebar
         if not st.session_state.modo_panel:
             if st.button("⚙️ ABRIR PANEL DE CONTROL"):
                 st.session_state.modo_panel = True
@@ -169,10 +172,11 @@ with st.sidebar:
             
         if st.session_state.edit_mode:
             with st.expander("🆕 Registrar Nuevo Item"):
-                rm = st.selectbox("Marca", config["marcas"])
-                rc = st.text_input("Código").upper().strip()
-                rd = st.selectbox("Depósito", config["depositos"])
+                rm = st.selectbox("Marca", config["marcas"], key="reg_marca")
+                rc = st.text_input("Código", key="reg_cod").upper().strip()
+                rd = st.selectbox("Depósito", config["depositos"], key="reg_dep")
                 if st.button("💾 Guardar"):
                     if rc:
                         inv[f"{rd}_{rc}"] = {"marca": rm, "deposito": rd, "stock": 0}
-                        guardar_todo(inv, config, logs); st.rerun()
+                        guardar_todo(inv, config, logs)
+                        st.rerun()
