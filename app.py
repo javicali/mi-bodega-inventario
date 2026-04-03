@@ -50,7 +50,7 @@ if 'usuario_actual' not in st.session_state: st.session_state.usuario_actual = "
 
 st.title("🏢 Inventario")
 
-# --- BUSCADOR PÚBLICO (SOLO LECTURA) ---
+# --- BUSCADOR PÚBLICO ---
 c_bus1, c_bus2 = st.columns([4, 1])
 with c_bus1:
     busq_pub = st.text_input("Consultar Stock:", key="in_pub", placeholder="Código...").upper().strip()
@@ -62,12 +62,13 @@ if busq_pub and (btn_pub or st.session_state.get('l_pub') != busq_pub):
     st.session_state['l_pub'] = busq_pub
     res = [v for k, v in inv.items() if (k.split("_", 1)[1] if "_" in k else k) == busq_pub]
     if res:
-        for r in res: st.info(f"📍 {r['deposito']} | **{r['marca']}**: {r['stock']} cajas")
+        for r in res:
+            txt = "caja" if r['stock'] == 1 else "cajas"
+            st.info(f"📍 {r['deposito']} | **{r['marca']}**: {r['stock']} {txt}")
     else: st.error("❌ No existe")
 
 st.divider()
 
-# --- BOTÓN DE ENTRADA / SALIDA ---
 if not st.session_state.mostrar_panel:
     if st.button("🚀 ENTRAR AL CONTROL", use_container_width=True, type="primary"):
         st.session_state.mostrar_panel = True
@@ -81,10 +82,9 @@ else:
 if st.session_state.mostrar_panel:
     st.subheader("🛠️ Panel de Modificación")
     
-    # BUSCADOR DENTRO DEL PANEL PARA MODIFICAR RÁPIDO
     c_mod1, c_mod2 = st.columns([4, 1])
     with c_mod1:
-        busq_mod = st.text_input("BUSCAR PARA EDITAR:", key="in_mod", placeholder="Escribe el código a modificar...").upper().strip()
+        busq_mod = st.text_input("BUSCAR PARA EDITAR:", key="in_mod", placeholder="Escribe el código...").upper().strip()
     with c_mod2:
         st.write("##")
         btn_mod = st.button("🔎", key="btn_mod")
@@ -94,34 +94,41 @@ if st.session_state.mostrar_panel:
         if items_edit:
             for id_f, info in items_edit.items():
                 with st.container(border=True):
-                    st.write(f"✏️ Editando: **{busq_mod}** ({info['marca']}) en **{info['deposito']}**")
+                    txt_c = "caja" if info['stock'] == 1 else "cajas"
+                    st.write(f"✏️ **{busq_mod}** ({info['marca']}) en **{info['deposito']}**")
                     col1, col2 = st.columns([1, 2])
-                    col1.metric("Stock Actual", f"{info['stock']} cj")
+                    col1.metric("Stock", f"{info['stock']} {txt_c}")
                     
                     if st.session_state.edit_mode:
                         with col2:
-                            n_cant = st.number_input("Cantidad", min_value=1, value=1, key=f"edit_n_{id_f}")
+                            n_cant = st.number_input("Cant.", min_value=1, value=1, key=f"ed_n_{id_f}")
                             b_add, b_sub, b_del = st.columns(3)
-                            if b_add.button("➕", key=f"edit_add_{id_f}"):
-                                inv[id_f]["stock"] += n_cant
-                                logs = registrar_log(logs, st.session_state.usuario_actual, "SUMA", f"+{n_cant} {busq_mod}")
-                                guardar_todo(inv, config, logs); st.rerun()
-                            if b_sub.button("➖", key=f"edit_sub_{id_f}", disabled=info['stock']<n_cant):
-                                inv[id_f]["stock"] -= n_cant
-                                logs = registrar_log(logs, st.session_state.usuario_actual, "RESTA", f"-{n_cant} {busq_mod}")
-                                guardar_todo(inv, config, logs); st.rerun()
-                            if b_del.button("🗑️", key=f"edit_del_{id_f}"):
-                                del inv[id_f]
-                                logs = registrar_log(logs, st.session_state.usuario_actual, "BORRAR", f"Eliminó {busq_mod}")
-                                guardar_todo(inv, config, logs); st.rerun()
-                    else:
-                        st.warning("Inicia sesión en la barra lateral para modificar.")
-        elif btn_mod:
-            st.error("Código no encontrado para editar.")
+                            if b_add.button("➕", key=f"ed_add_{id_f}"): st.session_state[f"ask_ed_add_{id_f}"] = True
+                            if b_sub.button("➖", key=f"ed_sub_{id_f}", disabled=info['stock']==0): st.session_state[f"ask_ed_sub_{id_f}"] = True
+                            if b_del.button("🗑️", key=f"ed_del_{id_f}"): st.session_state[f"ask_ed_del_{id_f}"] = True
+
+                            # CONFIRMACIONES BUSCADOR
+                            if st.session_state.get(f"ask_ed_add_{id_f}"):
+                                if st.button(f"CONFIRMAR +{n_cant}?", key=f"c_ed_add_{id_f}", type="primary", use_container_width=True):
+                                    inv[id_f]["stock"] += n_cant
+                                    logs = registrar_log(logs, st.session_state.usuario_actual, "SUMA", f"+{n_cant} {busq_mod}")
+                                    guardar_todo(inv, config, logs); del st.session_state[f"ask_ed_add_{id_f}"]; st.rerun()
+                            if st.session_state.get(f"ask_ed_sub_{id_f}"):
+                                if st.button(f"CONFIRMAR -{n_cant}?", key=f"c_ed_sub_{id_f}", type="primary", use_container_width=True):
+                                    inv[id_f]["stock"] -= n_cant
+                                    logs = registrar_log(logs, st.session_state.usuario_actual, "RESTA", f"-{n_cant} {busq_mod}")
+                                    guardar_todo(inv, config, logs); del st.session_state[f"ask_ed_sub_{id_f}"]; st.rerun()
+                            if st.session_state.get(f"ask_ed_del_{id_f}"):
+                                if st.button("🚨 BORRAR AHORA?", key=f"c_ed_del_{id_f}", type="primary", use_container_width=True):
+                                    del inv[id_f]
+                                    logs = registrar_log(logs, st.session_state.usuario_actual, "BORRAR", f"Eliminó {busq_mod}")
+                                    guardar_todo(inv, config, logs); del st.session_state[f"ask_ed_del_{id_f}"]; st.rerun()
+                    else: st.warning("Inicia sesión para editar.")
+        elif btn_mod: st.error("No encontrado.")
 
     st.divider()
     
-    # VISTA POR DEPÓSITOS Y TABS (Lo que ya tenías antes)
+    # VISTA POR TABS
     dep_actual = st.selectbox("📍 Ver por Depósito:", config["depositos"], key="sel_dep")
     tabs = st.tabs(config["marcas"] + ["⚠️ AGOTADOS"])
     
@@ -137,24 +144,35 @@ if st.session_state.mostrar_panel:
                 with st.container(border=True):
                     c1, c2, c3 = st.columns([1.5, 1, 1.8])
                     c1.markdown(f"**{cod_l}**\n<small>{info['marca']}</small>", unsafe_allow_html=True)
-                    c2.markdown(f"📦 **{info['stock']}**")
+                    txt_tab = "caja" if info['stock'] == 1 else "cajas"
+                    c2.markdown(f"📦 **{info['stock']}**\n<small>{txt_tab}</small>", unsafe_allow_html=True)
+                    
                     if st.session_state.edit_mode:
                         with c3:
                             cant = st.number_input("n", min_value=1, value=1, key=f"n_{id_f}", label_visibility="collapsed")
                             b1, b2, b3 = st.columns(3)
-                            if b1.button("➕", key=f"b1_{id_f}"):
-                                inv[id_f]["stock"] += cant
-                                logs = registrar_log(logs, st.session_state.usuario_actual, "SUMA", f"+{cant} {cod_l}")
-                                guardar_todo(inv, config, logs); st.rerun()
-                            if b2.button("➖", key=f"b2_{id_f}", disabled=info['stock']==0):
-                                inv[id_f]["stock"] -= cant
-                                logs = registrar_log(logs, st.session_state.usuario_actual, "RESTA", f"-{cant} {cod_l}")
-                                guardar_todo(inv, config, logs); st.rerun()
-                            if b3.button("🗑️", key=f"b3_{id_f}"):
-                                del inv[id_f]
-                                guardar_todo(inv, config, logs); st.rerun()
+                            if b1.button("➕", key=f"b1_{id_f}"): st.session_state[f"ask_add_{id_f}"] = True
+                            if b2.button("➖", key=f"b2_{id_f}", disabled=info['stock']==0): st.session_state[f"ask_sub_{id_f}"] = True
+                            if b3.button("🗑️", key=f"b3_{id_f}"): st.session_state[f"ask_del_{id_f}"] = True
 
-# --- SIDEBAR (USUARIOS Y ADMIN) ---
+                            # CONFIRMACIONES TABS
+                            if st.session_state.get(f"ask_add_{id_f}"):
+                                if st.button(f"OK +{cant}?", key=f"c_add_{id_f}", type="primary", use_container_width=True):
+                                    inv[id_f]["stock"] += cant
+                                    logs = registrar_log(logs, st.session_state.usuario_actual, "SUMA", f"+{cant} {cod_l}")
+                                    guardar_todo(inv, config, logs); del st.session_state[f"ask_add_{id_f}"]; st.rerun()
+                            if st.session_state.get(f"ask_sub_{id_f}"):
+                                if st.button(f"OK -{cant}?", key=f"c_sub_{id_f}", type="primary", use_container_width=True):
+                                    inv[id_f]["stock"] -= cant
+                                    logs = registrar_log(logs, st.session_state.usuario_actual, "RESTA", f"-{cant} {cod_l}")
+                                    guardar_todo(inv, config, logs); del st.session_state[f"ask_sub_{id_f}"]; st.rerun()
+                            if st.session_state.get(f"ask_del_{id_f}"):
+                                if st.button("ELIMINAR?", key=f"c_del_{id_f}", type="primary", use_container_width=True):
+                                    del inv[id_f]
+                                    logs = registrar_log(logs, st.session_state.usuario_actual, "BORRAR", f"Borró {cod_l}")
+                                    guardar_todo(inv, config, logs); del st.session_state[f"ask_del_{id_f}"]; st.rerun()
+
+# --- SIDEBAR ---
 with st.sidebar:
     st.header("🔐 Acceso")
     if not st.session_state.edit_mode:
@@ -187,7 +205,7 @@ with st.sidebar:
                 up = st.text_input("Clave", type="password", key="adm_up")
                 if st.button("💾 Guardar Usuario"):
                     if un and up: config["usuarios"][un] = up; guardar_todo(inv, config, logs); st.rerun()
-            with st.expander("🏘️ Depósitos y Traslados"):
+            with st.expander("🏘️ Depósitos"):
                 nd = st.text_input("Nuevo Depósito").upper()
                 if st.button("➕ Crear Depo"):
                     if nd and nd not in config["depositos"]: config["depositos"].append(nd); guardar_todo(inv, config, logs); st.rerun()
