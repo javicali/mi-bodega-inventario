@@ -1,9 +1,11 @@
+
 import streamlit as st
 import json
 import os
 import time
 from datetime import datetime, timedelta
 
+# Archivos de base de datos
 ARCHIVO_DB = "datos_bodega.json"
 ARCHIVO_CONF = "config_bodega.json"
 ARCHIVO_LOG = "historial_movimientos.json"
@@ -55,12 +57,18 @@ if 'usuario_actual' not in st.session_state: st.session_state.usuario_actual = "
 
 st.title("🏢 Inventario")
 
+# --- BUSCADOR ---
 busq = st.text_input("🔍 BUSCAR CÓDIGO:").upper().strip()
 if busq:
+    # Buscamos coincidencias ignorando el prefijo del depósito en la llave
     res = [v for k, v in inv.items() if (k.split("_", 1)[1] if "_" in k else k) == busq]
     if res:
-        for r in res: st.info(f"📍 {r['deposito']} | **{r['marca']}**: {r['stock']} cj")
-    else: st.warning("❌ No existe")
+        for r in res:
+            # Lógica para singular/plural
+            txt_caja = "caja" if r['stock'] == 1 else "cajas"
+            st.info(f"📍 {r['deposito']} | **{r['marca']}**: {r['stock']} {txt_caja}")
+    else:
+        st.warning("❌ No existe el código buscado")
 
 st.divider()
 
@@ -91,7 +99,10 @@ if st.session_state.mostrar_panel:
                 with st.container(border=True):
                     c1, c2, c3 = st.columns([1.5, 1, 1.8])
                     c1.markdown(f"**{cod_l}**\n<small>{info['marca']}</small>", unsafe_allow_html=True)
-                    c2.markdown(f"📦 **{info['stock']}**")
+                    
+                    # También lo cambiamos aquí para que sea coherente
+                    txt_caja_panel = "caja" if info['stock'] == 1 else "cajas"
+                    c2.markdown(f"📦 **{info['stock']}**\n<small>{txt_caja_panel}</small>", unsafe_allow_html=True)
                     
                     if st.session_state.edit_mode:
                         with c3:
@@ -120,6 +131,7 @@ if st.session_state.mostrar_panel:
                                     logs = registrar_log(logs, st.session_state.usuario_actual, "ELIMINAR", f"Borró {cod_l}")
                                     guardar_todo(inv, config, logs); del st.session_state[f"ask_del_{key_id}"]; st.rerun()
 
+# --- SIDEBAR ---
 with st.sidebar:
     st.header("🔐 Acceso")
     if not st.session_state.edit_mode:
@@ -148,7 +160,7 @@ with st.sidebar:
         if st.session_state.usuario_actual == "ADMIN":
             st.warning("⚡ PANEL CONTROL ADMIN")
             
-            with st.expander("👥 1. Gestionar Usuarios"):
+            with st.expander("👥 1. Usuarios"):
                 un = st.text_input("Nombre Usuario", key="adm_un").upper()
                 up = st.text_input("Contraseña", type="password", key="adm_up")
                 if st.button("💾 Guardar Usuario", key="adm_ubtn"):
@@ -159,7 +171,7 @@ with st.sidebar:
                 if st.button("🗑️ Eliminar Usuario", key="adm_ubdel"):
                     del config["usuarios"][ub]; guardar_todo(inv, config, logs); st.rerun()
 
-            with st.expander("🏷️ 2. Gestionar Marcas"):
+            with st.expander("🏷️ 2. Marcas"):
                 nm = st.text_input("Nueva Marca", key="adm_nm").upper()
                 if st.button("➕ Añadir Marca", key="adm_mbtn"):
                     if nm and nm not in config["marcas"]:
@@ -168,7 +180,7 @@ with st.sidebar:
                 if st.button("🗑️ Borrar Marca", key="adm_mbdel"):
                     config["marcas"].remove(mb); guardar_todo(inv, config, logs); st.rerun()
 
-            with st.expander("🏘️ 3. Gestionar Depósitos"):
+            with st.expander("🏘️ 3. Depósitos"):
                 nd = st.text_input("Nuevo Depósito", key="adm_nd").upper()
                 if st.button("➕ Crear Depósito", key="adm_dbtn"):
                     if nd and nd not in config["depositos"]:
