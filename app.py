@@ -9,38 +9,45 @@ from datetime import datetime, timedelta
 NOMBRE_EXCEL = "DB_BODEGA_SISTEMA"
 SCOPE = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
 
-import re # Asegúrate de tener esta línea al principio del archivo
+import re
 
 def conectar_google():
     try:
         if "gcp_service_account" in st.secrets:
+            # 1. Cargamos los secretos
             creds_dict = dict(st.secrets["gcp_service_account"])
             
-            # --- LIMPIEZA QUIRÚRGICA ---
+            # 2. LIMPIEZA QUIRÚRGICA
             raw_key = creds_dict["private_key"]
             
-            # 1. Extraemos solo el contenido entre las etiquetas BEGIN y END
+            # Extraemos solo el contenido entre las etiquetas BEGIN y END
             if "-----BEGIN PRIVATE KEY-----" in raw_key:
-                parts = raw_key.split("-----")
-                # La parte del medio (índice 2) es la llave real
-                key_content = parts[2]
+                # Quitamos encabezados y finales para limpiar el "corazón" de la llave
+                key_body = raw_key.replace("-----BEGIN PRIVATE KEY-----", "").replace("-----END PRIVATE KEY-----", "")
+                # Eliminamos CUALQUIER espacio, salto de línea o basura invisible
+                clean_key = re.sub(r'\s+', '', key_body)
                 
-                # 2. ELIMINAMOS TODO lo que no sea base64 (espacios, saltos de línea, basura)
-                # Esto soluciona el error de los 65 caracteres
-                clean_content = re.sub(r'[^a-zA-Z0-9+/=]', '', key_content)
+                # 3. REPARACIÓN AUTOMÁTICA DE PADDING
+                # Base64 necesita que la longitud sea múltiplo de 4
+                missing_padding = len(clean_key) % 4
+                if missing_padding:
+                    clean_key += '=' * (4 - missing_padding)
                 
-                # 3. Reconstruimos la llave perfectamente para Google
-                creds_dict["private_key"] = f"-----BEGIN PRIVATE KEY-----\n{clean_content}\n-----END PRIVATE KEY-----\n"
+                # Reconstruimos la llave oficial
+                creds_dict["private_key"] = f"-----BEGIN PRIVATE KEY-----\n{clean_key}\n-----END PRIVATE KEY-----\n"
             
+            # 4. CONEXIÓN POR DICCIONARIO
             creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, SCOPE)
         else:
+            # Respaldo para tu iMac
             creds = ServiceAccountCredentials.from_json_keyfile_name('creds.json', SCOPE)
             
         client = gspread.authorize(creds)
         return client.open(NOMBRE_EXCEL)
     except Exception as e:
         st.error(f"❌ Error de conexión: {e}")
-        return None        
+        return None
+        
 # --- FUNCIONES DE BASE DE DATOS ---
 def cargar_todo():
     sh = conectar_google()
