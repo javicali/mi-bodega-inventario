@@ -11,30 +11,27 @@ SCOPE = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/au
 
 def conectar_google():
     try:
+        # 1. Intentar entrar por la NUBE (Streamlit Secrets)
         if "gcp_service_account" in st.secrets:
-            # Cargamos el texto crudo de los secrets
-            creds_dict = json.loads(st.secrets["gcp_service_account"]["json_creds"])
+            # Convertimos los secretos directamente a un diccionario
+            creds_dict = dict(st.secrets["gcp_service_account"])
             
-            # REPARACIÓN: Reemplaza los saltos de línea para que Google los entienda
+            # Limpieza de seguridad para la llave
             creds_dict["private_key"] = creds_dict["private_key"].replace("\\n", "\n")
             
             creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, SCOPE)
+        
+        # 2. Si no es la nube, usar el archivo local de la iMac
         else:
-            # Para cuando lo corres en la iMac
             creds = ServiceAccountCredentials.from_json_keyfile_name('creds.json', SCOPE)
             
         client = gspread.authorize(creds)
         return client.open(NOMBRE_EXCEL)
+        
     except Exception as e:
         st.error(f"❌ Error de conexión: {e}")
         return None
-            
-        client = gspread.authorize(creds)
-        return client.open(NOMBRE_EXCEL)
-    except Exception as e:
-        st.error(f"❌ Error de conexión: {e}")
-        return None
-
+        
 # --- FUNCIONES DE BASE DE DATOS ---
 def cargar_todo():
     sh = conectar_google()
