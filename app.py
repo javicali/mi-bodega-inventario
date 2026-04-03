@@ -28,13 +28,18 @@ def guardar_todo(inv, conf, logs):
     with open(ARCHIVO_LOG, "w", encoding="utf-8") as f: json.dump(logs, f, indent=4)
 
 def registrar_log(logs, usuario, accion, detalle):
-    nuevo_log = {"fecha": datetime.now().strftime("%d/%m/%Y %H:%M"), "usuario": usuario, "accion": accion, "detalle": detalle}
+    # Ahora el log incluye el usuario de forma explícita
+    nuevo_log = {
+        "fecha": datetime.now().strftime("%d/%m/%Y %H:%M"),
+        "usuario": usuario,
+        "accion": accion,
+        "detalle": detalle
+    }
     logs.insert(0, nuevo_log)
     return logs[:200]
 
 st.set_page_config(page_title="Bodega Pro", layout="wide")
 
-# Estilo para celulares
 st.markdown("""<style>
     .block-container {padding-top: 1rem; padding-bottom: 0rem;}
     .stButton>button {padding: 0.2rem 0.5rem;}
@@ -50,7 +55,6 @@ if 'usuario_actual' not in st.session_state: st.session_state.usuario_actual = "
 
 st.title("🏢 Inventario")
 
-# --- BUSCADOR ---
 busq = st.text_input("🔍 BUSCAR CÓDIGO:").upper().strip()
 if busq:
     res = [v for k, v in inv.items() if (k.split("_", 1)[1] if "_" in k else k) == busq]
@@ -99,20 +103,21 @@ if st.session_state.mostrar_panel:
                             if b3.button("🗑️", key=f"b3_{key_id}"): st.session_state[f"ask_del_{key_id}"] = True
 
                             if st.session_state.get(f"ask_add_{key_id}"):
-                                if st.button(f"OK +{cant}?", key=f"conf_add_{key_id}", type="primary"):
+                                if st.button(f"OK +{cant}?", key=f"conf_add_{key_id}", type="primary", use_container_width=True):
                                     inv[id_f]["stock"] += cant
                                     logs = registrar_log(logs, st.session_state.usuario_actual, "SUMA", f"+{cant} {cod_l}")
                                     guardar_todo(inv, config, logs); del st.session_state[f"ask_add_{key_id}"]; st.rerun()
 
                             if st.session_state.get(f"ask_sub_{key_id}"):
-                                if st.button(f"OK -{cant}?", key=f"conf_sub_{key_id}", type="primary"):
+                                if st.button(f"OK -{cant}?", key=f"conf_sub_{key_id}", type="primary", use_container_width=True):
                                     inv[id_f]["stock"] -= cant
                                     logs = registrar_log(logs, st.session_state.usuario_actual, "RESTA", f"-{cant} {cod_l}")
                                     guardar_todo(inv, config, logs); del st.session_state[f"ask_sub_{key_id}"]; st.rerun()
 
                             if st.session_state.get(f"ask_del_{key_id}"):
-                                if st.button("🚨 BORRAR", key=f"conf_del_{key_id}", type="primary"):
+                                if st.button("🚨 BORRAR", key=f"conf_del_{key_id}", type="primary", use_container_width=True):
                                     del inv[id_f]
+                                    logs = registrar_log(logs, st.session_state.usuario_actual, "ELIMINAR", f"Borró {cod_l}")
                                     guardar_todo(inv, config, logs); del st.session_state[f"ask_del_{key_id}"]; st.rerun()
 
 # --- SIDEBAR ---
@@ -138,6 +143,7 @@ with st.sidebar:
             if st.button("💾 Guardar Item", key="reg_btn"):
                 if rc:
                     inv[f"{rd}_{rc}"] = {"marca": rm, "deposito": rd, "stock": 0}
+                    logs = registrar_log(logs, st.session_state.usuario_actual, "CREACIÓN", f"Nuevo: {rc}")
                     guardar_todo(inv, config, logs); st.rerun()
 
         if st.session_state.usuario_actual == "ADMIN":
@@ -146,7 +152,7 @@ with st.sidebar:
             with st.expander("👥 1. Gestionar Usuarios"):
                 un = st.text_input("Nombre Usuario", key="adm_un").upper()
                 up = st.text_input("Contraseña", type="password", key="adm_up")
-                if st.button("💾 Guardar/Modificar Usuario", key="adm_ubtn"):
+                if st.button("💾 Guardar Usuario", key="adm_ubtn"):
                     if un and up:
                         config["usuarios"][un] = up
                         guardar_todo(inv, config, logs); st.rerun()
@@ -184,7 +190,7 @@ with st.sidebar:
                                 inv[nid] = inv[k].copy()
                                 inv[nid]["deposito"] = dde
                             del inv[k]
-                        registrar_log(logs, "ADMIN", "TRASLADO", f"De {dor} a {dde}")
+                        logs = registrar_log(logs, st.session_state.usuario_actual, "TRASLADO", f"De {dor} a {dde}")
                         guardar_todo(inv, config, logs); st.rerun()
                 
                 st.divider()
@@ -196,5 +202,6 @@ with st.sidebar:
                         config["depositos"].remove(del_d); guardar_todo(inv, config, logs); st.rerun()
 
             with st.expander("📜 4. Historial"):
+                # Mostrar quién hizo el cambio claramente
                 for l in logs:
-                    st.write(f"<small>{l['fecha']} | {l['detalle']}</small>", unsafe_allow_html=True)
+                    st.write(f"**{l['fecha']}** | 👤 {l.get('usuario','?')}: {l['detalle']}")
