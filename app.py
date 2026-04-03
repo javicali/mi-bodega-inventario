@@ -15,21 +15,18 @@ from oauth2client.service_account import ServiceAccountCredentials
 
 def conectar_google():
     try:
-        # Si estamos en Streamlit Cloud
         if "gcp_service_account" in st.secrets:
-            # Traemos el texto gigante que pegaste
-            datos_sucios = st.secrets["gcp_service_account"]["json_creds"]
-            # Lo convertimos en un diccionario real
-            info_llaves = json.loads(datos_sucios)
+            # Cargamos los datos como un diccionario
+            creds_dict = dict(st.secrets["gcp_service_account"])
             
-            # REPARACIÓN DE EMERGENCIA: Esto arregla el "Incorrect padding"
-            # Asegura que los \n sean saltos de línea reales para Google
-            if "private_key" in info_llaves:
-                info_llaves["private_key"] = info_llaves["private_key"].replace("\\n", "\n")
+            # --- CURACIÓN ANTIBALAS ---
+            # Esto elimina espacios, saltos de línea raros y arregla el 'padding'
+            raw_key = creds_dict["private_key"].strip()
+            # Si la llave se pegó con el formato \n visible, lo convertimos a saltos reales
+            creds_dict["private_key"] = raw_key.replace("\\n", "\n")
             
-            creds = ServiceAccountCredentials.from_json_keyfile_dict(info_llaves, SCOPE)
+            creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, SCOPE)
         else:
-            # Si estás probando en la iMac
             creds = ServiceAccountCredentials.from_json_keyfile_name('creds.json', SCOPE)
             
         client = gspread.authorize(creds)
