@@ -234,15 +234,42 @@ with st.sidebar:
                         registrar_log(logs, st.session_state.usuario_actual, "TRASLADO", f"{tq} {tc} ({to}->{td})")
                         guardar_todo(inv, config, logs); st.toast("Traslado exitoso"); st.rerun()
 
-            with st.expander("📝 Historial y Reportes"):
+      
+with st.expander("📝 Historial y Reportes"):
                 if logs or inv:
+                    # Creamos el DataFrame para el Excel
                     df_mov = pd.DataFrame(logs)
+                    
+                    # Si el historial tiene datos, nos aseguramos de que las columnas estén en orden
+                    if not df_mov.empty:
+                        # Reordenamos para que Usuario sea visible al principio
+                        columnas = ['fecha', 'usuario', 'accion', 'detalle']
+                        df_mov = df_mov.reindex(columns=columnas)
+
                     df_stk = pd.DataFrame([{"Depo": v['deposito'], "Marca": v['marca'], "Código": k.split('_')[-1], "Cant": v['stock']} for k, v in inv.items()])
+                    
                     buffer = io.BytesIO()
                     with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
                         df_stk.to_excel(writer, index=False, sheet_name='STOCK ACTUAL')
                         df_mov.to_excel(writer, index=False, sheet_name='MOVIMIENTOS')
-                    st.download_button("📥 EXCEL SEMANAL", buffer.getvalue(), f"Reporte_{datetime.now().strftime('%d_%m')}.xlsx", use_container_width=True)
+                    
+                    st.download_button("📥 DESCARGAR EXCEL COMPLETO", buffer.getvalue(), f"Reporte_{datetime.now().strftime('%d_%m')}.xlsx", use_container_width=True)
                     st.divider()
-                if st.button("🗑️ Limpiar Logs"): logs = []; guardar_todo(inv, config, logs); st.rerun()
-                for l in logs[:10]: st.write(f"<small>{l['fecha']} | {l['detalle']}</small>", unsafe_allow_html=True)
+                
+                if st.button("🗑️ Limpiar Historial"): 
+                    logs = []
+                    guardar_todo(inv, config, logs)
+                    st.rerun()
+
+                # --- LISTA VISUAL DEL HISTORIAL ---
+                st.markdown("### Últimos movimientos")
+                for l in logs[:20]: # Mostramos los últimos 20
+                    # Aquí es donde formateamos para que salga el NOMBRE DEL USUARIO en negrita
+                    st.markdown(f"""
+                    <div style="border-bottom: 1px solid #eee; padding: 5px 0;">
+                        <span style="color: #888; font-size: 0.8em;">{l['fecha']}</span> | 
+                        <b>👤 {l.get('usuario', 'SISTEMA')}</b> | 
+                        <span style="color: #28a745;">{l['accion']}</span>: 
+                        {l['detalle']}
+                    </div>
+                    """, unsafe_allow_html=True)
