@@ -11,31 +11,27 @@ SCOPE = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/au
 
 def conectar_google():
     try:
+        # 1. Si estamos en Streamlit Cloud (Nube)
         if "gcp_service_account" in st.secrets:
-            # 1. Cargamos los secretos
+            # Cargamos los secretos como un diccionario
             creds_dict = dict(st.secrets["gcp_service_account"])
             
-            # 2. LIMPIEZA PROFUNDA
-            # Quitamos espacios y aseguramos saltos de línea reales
+            # Limpiamos la llave por si acaso (esto ya lo tenemos dominado)
             raw_key = creds_dict["private_key"].strip().replace("\\n", "\n")
-            
-            # 3. REPARACIÓN AUTOMÁTICA DE PADDING
-            # Base64 necesita que la longitud sea múltiplo de 4. 
-            # Si no lo es, este código le añade los "=" necesarios.
-            missing_padding = len(raw_key) % 4
-            if missing_padding:
-                raw_key += '=' * (4 - missing_padding)
-            
             creds_dict["private_key"] = raw_key
             
-            # 4. CONEXIÓN POR DICCIONARIO
+            # ¡EL CAMBIO CLAVE! 
+            # Usamos 'from_json_keyfile_dict' en lugar de 'from_json_keyfile_name'
             creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, SCOPE)
+            
         else:
-            # Respaldo para tu iMac
+            # 2. Si estás probando en tu iMac (Local)
+            # Aquí sí se usa 'name' porque el archivo 'creds.json' existe físicamente
             creds = ServiceAccountCredentials.from_json_keyfile_name('creds.json', SCOPE)
             
         client = gspread.authorize(creds)
         return client.open(NOMBRE_EXCEL)
+        
     except Exception as e:
         st.error(f"❌ Error de conexión: {e}")
         return None
