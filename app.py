@@ -45,10 +45,12 @@ if 'edit_mode' not in st.session_state: st.session_state.edit_mode = False
 # --- FUNCIÓN TARJETA DE EDICIÓN ---
 def mostrar_item_edicion(id_f, info, sufijo):
     cod_l = id_f.split("_", 1)[1] if "_" in id_f else id_f
+    txt_cajas = "caja" if info['stock'] == 1 else "cajas"
+    
     with st.container(border=True):
         c1, c2, c3 = st.columns([1.5, 1, 2.2])
         c1.markdown(f"**{cod_l}**\n<small>{info['marca']} | {info['deposito']}</small>", unsafe_allow_html=True)
-        c2.markdown(f"📦 **{info['stock']}**\n<small>unidades</small>", unsafe_allow_html=True)
+        c2.markdown(f"📦 **{info['stock']}**\n<small>{txt_cajas}</small>", unsafe_allow_html=True)
         
         with c3:
             key_aviso = f"aviso_{sufijo}_{id_f}"
@@ -70,15 +72,17 @@ def mostrar_item_edicion(id_f, info, sufijo):
                 if estado:
                     if st.button("CONFIRMAR OK", key=f"ok_{sufijo}_{id_f}", type="primary"):
                         usuario_act = st.session_state.get("usuario_actual", "ADMIN")
+                        palabra_cant = "caja" if cant == 1 else "cajas"
+                        
                         if estado == "S": 
                             inv[id_f]["stock"] += cant
                             registrar_log(logs, usuario_act, "SUMA", f"+{cant} {cod_l}")
-                            st.session_state[key_aviso] = ("SUMA", f"¡Aumentado! +{cant}")
+                            st.session_state[key_aviso] = ("SUMA", f"¡Aumentado! +{cant} {palabra_cant}")
                         elif estado == "R": 
                             if inv[id_f]["stock"] >= cant:
                                 inv[id_f]["stock"] -= cant
                                 registrar_log(logs, usuario_act, "RESTA", f"-{cant} {cod_l}")
-                                st.session_state[key_aviso] = ("RESTA", f"¡Descontado! -{cant}")
+                                st.session_state[key_aviso] = ("RESTA", f"¡Descontado! -{cant} {palabra_cant}")
                         elif estado == "B": 
                             registrar_log(logs, usuario_act, "BORRAR", f"Eliminó {cod_l}")
                             if id_f in inv: del inv[id_f]
@@ -101,7 +105,8 @@ if not st.session_state.modo_panel:
         res = {k: v for k, v in inv.items() if (k.split("_", 1)[1] if "_" in k else k) == busq}
         if res:
             for k, v in res.items():
-                msg = f"**{busq}** ({v['marca']}) en **{v['deposito']}**: {v['stock']} unidades"
+                t_caja = "caja" if v['stock'] == 1 else "cajas"
+                msg = f"**{busq}** ({v['marca']}) en **{v['deposito']}**: {v['stock']} {t_caja}"
                 if v['stock'] > 0: st.success(f"✅ {msg}")
                 else: st.error(f"🚨 AGOTADO: {msg}")
         elif busq:
@@ -115,7 +120,9 @@ if not st.session_state.modo_panel:
             with tbs[i]:
                 items = {k: v for k, v in inv.items() if v.get('marca')==m and v.get('deposito')==d_v and v.get('stock',0)>0}
                 if not items: st.write("_Sin existencias._")
-                for kid, info in sorted(items.items()): st.write(f"**{kid.split('_')[-1]}**: {info['stock']} unidades")
+                for kid, info in sorted(items.items()): 
+                    t_c = "caja" if info['stock'] == 1 else "cajas"
+                    st.write(f"**{kid.split('_')[-1]}**: {info['stock']} {t_c}")
 
 else:
     st.title("🛠️ Panel de Control")
@@ -156,7 +163,6 @@ with st.sidebar:
             st.session_state.edit_mode = False; st.session_state.modo_panel = False; st.rerun()
 
         st.divider()
-        # SECCIÓN PARA TODOS
         with st.expander("🆕 Nuevo Código"):
             n_m = st.selectbox("Marca", config["marcas"], key="new_marca")
             n_c = st.text_input("Código", key="new_code").upper().strip()
@@ -167,9 +173,7 @@ with st.sidebar:
                     registrar_log(logs, st.session_state.usuario_actual, "CREACION", f"Nuevo: {n_c}")
                     guardar_todo(inv, config, logs); st.rerun()
 
-        # SECCIÓN EXCLUSIVA ADMIN
         if st.session_state.usuario_actual.upper() == "ADMIN":
-            
             with st.expander("👥 Usuarios"):
                 nu = st.text_input("Nuevo Usuario").upper().strip()
                 np = st.text_input("Nueva Clave", type="password")
@@ -193,8 +197,7 @@ with st.sidebar:
                         guardar_todo(inv, config, logs); st.rerun()
                 
                 st.divider()
-                st.write("**Renombrar:**")
-                d_viejo = st.selectbox("Cambiar:", config["depositos"], key="sel_old_dep")
+                d_viejo = st.selectbox("Cambiar nombre:", config["depositos"], key="sel_old_dep")
                 d_nuevo = st.text_input("Nuevo Nombre:").upper().strip()
                 if st.button("Actualizar Nombre"):
                     if d_nuevo and d_nuevo not in config["depositos"]:
@@ -234,7 +237,7 @@ with st.sidebar:
                 tc = st.text_input("Código Item").upper().strip()
                 to = st.selectbox("Origen", config["depositos"])
                 td = st.selectbox("Destino", config["depositos"])
-                tq = st.number_input("Cantidad", min_value=1, value=1)
+                tq = st.number_input("Cajas a mover", min_value=1, value=1)
                 if st.button("Ejecutar Traslado"):
                     io, id_dest = f"{to}_{tc}", f"{td}_{tc}"
                     if io in inv and inv[io]["stock"] >= tq:
@@ -247,7 +250,7 @@ with st.sidebar:
 
             with st.expander("📝 Reportes e Historial"):
                 if inv:
-                    df_stk = pd.DataFrame([{"Depo": v['deposito'], "Marca": v['marca'], "Código": k.split('_')[-1], "Cant": v['stock']} for k, v in inv.items()])
+                    df_stk = pd.DataFrame([{"Depo": v['deposito'], "Marca": v['marca'], "Código": k.split('_')[-1], "Cajas": v['stock']} for k, v in inv.items()])
                     buffer = io.BytesIO()
                     with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
                         df_stk.to_excel(writer, index=False, sheet_name='STOCK')
