@@ -71,6 +71,7 @@ def mostrar_item_edicion(id_f, info, sufijo):
 # --- INTERFAZ PRINCIPAL ---
 if not st.session_state.modo_panel:
     st.title("🏢 Consulta de Inventario")
+    
     col_busq, col_btn = st.columns([4, 1])
     with col_busq:
         busq = st.text_input("Buscar código:", key="main_search", placeholder="Ingrese código...").upper().strip()
@@ -82,10 +83,17 @@ if not st.session_state.modo_panel:
         res = {k: v for k, v in inv.items() if (k.split("_", 1)[1] if "_" in k else k) == busq}
         if res:
             for k, v in res.items():
-                st.success(f"✅ **{busq}** ({v['marca']}) en **{v['deposito']}**: {v['stock']} cajas")
-        elif busq: st.error("❌ Código no encontrado.")
+                # --- CAMBIO AQUÍ: LÓGICA DE COLOR POR STOCK ---
+                mensaje = f"**{busq}** ({v['marca']}) en **{v['deposito']}**: {v['stock']} cajas"
+                if v['stock'] > 0:
+                    st.success(f"✅ {mensaje}")
+                else:
+                    st.error(f"🚨 AGOTADO: {mensaje}")
+        elif busq: 
+            st.warning("⚠️ Código no registrado en el sistema.")
     
     st.divider()
+    # (El resto del código de la Vista General se mantiene igual...)
     if st.checkbox("👁️ Ver Stock General"):
         dep_v = st.selectbox("Depósito:", config["depositos"], key="view_dep")
         tabs = st.tabs(config["marcas"])
@@ -94,23 +102,7 @@ if not st.session_state.modo_panel:
                 items = {k: v for k, v in inv.items() if v.get('marca')==m and v.get('deposito')==dep_v and v.get('stock',0)>0}
                 if not items: st.write("Sin existencias.")
                 for kid, info in items.items(): st.write(f"**{kid.split('_')[-1]}**: {info['stock']} cajas")
-else:
-    st.title("🛠️ Panel de Modificación")
-    busq_m = st.text_input("🔎 Buscar para editar:", key="edit_search").upper().strip()
-    if busq_m:
-        items_f = {k: v for k, v in inv.items() if (k.split("_", 1)[1] if "_" in k else k) == busq_m}
-        for id_f, info in items_f.items(): mostrar_item_edicion(id_f, info, "busq")
-    else:
-        dep_sel = st.selectbox("📍 Depósito:", config["depositos"], key="edit_dep")
-        tabs_e = st.tabs(config["marcas"] + ["⚠️ AGOTADOS"])
-        for i, m_e in enumerate(config["marcas"] + ["⚠️ AGOTADOS"]):
-            with tabs_e[i]:
-                if m_e == "⚠️ AGOTADOS":
-                    items = {k: v for k, v in inv.items() if v.get('stock',0)==0 and v.get('deposito')==dep_sel}
-                else:
-                    items = {k: v for k, v in inv.items() if v.get('marca')==m_e and v.get('deposito')==dep_sel and v.get('stock',0)>0}
-                for id_f, info in sorted(items.items()): mostrar_item_edicion(id_f, info, "tab")
-
+                    
 # --- SIDEBAR (ORDEN SOLICITADO) ---
 with st.sidebar:
     st.header("🔐 Acceso")
