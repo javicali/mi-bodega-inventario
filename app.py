@@ -200,6 +200,40 @@ with st.sidebar:
                         config["depositos"].append(n_d)
                         guardar_todo(inv, config, logs)
                         st.success("Creado"); time.sleep(0.5); st.rerun()
+                
+                st.divider()
+                st.write("**Trasladar Inventario**")
+                d_orig = st.selectbox("Desde:", config["depositos"])
+                d_dest = st.selectbox("Hacia:", config["depositos"])
+                if st.button("🚛 Trasladar TODO"):
+                    if d_orig != d_dest:
+                        items_a_mover = [k for k, v in inv.items() if v["deposito"] == d_orig]
+                        for k in items_a_mover:
+                            cod_puro = k.split("_", 1)[1] if "_" in k else k
+                            nuevo_id = f"{d_dest}_{cod_puro}"
+                            # Sumar stock al destino si ya existe, o crear nuevo
+                            if nuevo_id in inv:
+                                inv[nuevo_id]["stock"] += inv[k]["stock"]
+                            else:
+                                inv[nuevo_id] = inv[k].copy()
+                                inv[nuevo_id]["deposito"] = d_dest
+                            del inv[k]
+                        logs = registrar_log(logs, "ADMIN", "TRASLADO", f"De {d_orig} a {d_dest}")
+                        guardar_todo(inv, config, logs)
+                        st.success("Traslado completado"); time.sleep(0.5); st.rerun()
+
+                st.divider()
+                d_elim = st.selectbox("Borrar Depósito Vacío:", config["depositos"])
+                if st.button("🗑️ Eliminar Depo"):
+                    # Solo borrar si no hay items vinculados a ese depo
+                    if any(v["deposito"] == d_elim for v in inv.values()):
+                        st.error("No se puede borrar: ¡Aún tiene mercadería!")
+                    elif len(config["depositos"]) <= 1:
+                        st.error("Debe quedar al menos un depósito.")
+                    else:
+                        config["depositos"].remove(d_elim)
+                        guardar_todo(inv, config, logs)
+                        st.success("Eliminado"); time.sleep(0.5); st.rerun()
 
             with st.expander("📜 4. Historial"):
                 for l in logs:
