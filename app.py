@@ -9,16 +9,33 @@ from datetime import datetime, timedelta
 NOMBRE_EXCEL = "DB_BODEGA_SISTEMA"
 SCOPE = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
 
+import re
+
 def conectar_google():
     try:
         if "gcp_service_account" in st.secrets:
             creds_dict = dict(st.secrets["gcp_service_account"])
-            # No necesitamos el .replace("\\n", "\n") si usamos las comillas triples,
-            # pero dejarlo no hace daño. 
+            
+            # --- LIMPIEZA ATÓMICA ---
+            raw_key = creds_dict["private_key"]
+            
+            # 1. Extraemos solo lo que está entre las etiquetas BEGIN y END
+            # Esto elimina espacios o textos accidentales fuera de la llave
+            if "-----BEGIN PRIVATE KEY-----" in raw_key:
+                header = "-----BEGIN PRIVATE KEY-----"
+                footer = "-----END PRIVATE KEY-----"
+                content = raw_key.split(header)[1].split(footer)[0]
+                
+                # 2. Quitamos ABSOLUTAMENTE TODO lo que no sea base64 (espacios, \n, tabs)
+                clean_content = re.sub(r'[^a-zA-Z0-9+/=]', '', content)
+                
+                # 3. Reconstruimos la llave perfecta para Google
+                creds_dict["private_key"] = f"{header}\n{clean_content}\n{footer}\n"
+            
             creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, SCOPE)
         else:
             creds = ServiceAccountCredentials.from_json_keyfile_name('creds.json', SCOPE)
-        
+            
         client = gspread.authorize(creds)
         return client.open(NOMBRE_EXCEL)
     except Exception as e:
