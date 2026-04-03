@@ -70,7 +70,6 @@ def mostrar_item_edicion(id_f, info, sufijo):
 
 # --- LÓGICA DE PANTALLAS ---
 if not st.session_state.modo_panel:
-    # --- VISTA DE CONSULTA (INICIO) ---
     st.title("🏢 Consulta de Inventario")
     col_busq, col_btn = st.columns([4, 1])
     with col_busq:
@@ -99,10 +98,7 @@ if not st.session_state.modo_panel:
                 for kid, info in items.items(): st.write(f"**{kid.split('_')[-1]}**: {info['stock']} cajas")
 
 else:
-    # --- VISTA PANEL DE CONTROL (MODIFICACIÓN) ---
     st.title("🛠️ Panel de Modificación")
-    
-    # 1. Buscador dentro del panel
     busq_m = st.text_input("🔎 BUSCAR PARA EDITAR:", key="edit_search_p").upper().strip()
     if busq_m:
         items_f = {k: v for k, v in inv.items() if (k.split("_", 1)[1] if "_" in k else k) == busq_m}
@@ -111,8 +107,6 @@ else:
         else: st.error("No se encontró el código.")
     
     st.divider()
-    
-    # 2. Listado por pestañas
     dep_sel = st.selectbox("📍 Seleccione Depósito:", config["depositos"], key="p_dep_sel")
     nombres_tabs = config["marcas"] + ["⚠️ AGOTADOS"]
     tabs_e = st.tabs(nombres_tabs)
@@ -125,12 +119,10 @@ else:
                 items_p = {k: v for k, v in inv.items() if v.get('marca') == m_e and v.get('deposito') == dep_sel and v.get('stock', 0) > 0}
             
             if items_p:
-                for id_f, info in sorted(items_p.items()):
-                    mostrar_item_edicion(id_f, info, f"p_tab_{i}")
-            else:
-                st.write(f"Sin productos en {m_e}.")
+                for id_f, info in sorted(items_p.items()): mostrar_item_edicion(id_f, info, f"p_tab_{i}")
+            else: st.write(f"Sin productos en {m_e}.")
 
-# --- SIDEBAR (ORDEN SOLICITADO) ---
+# --- SIDEBAR ---
 with st.sidebar:
     st.header("🔐 Acceso")
     if not st.session_state.edit_mode:
@@ -142,7 +134,6 @@ with st.sidebar:
                 st.rerun()
     else:
         st.success(f"👤 {st.session_state.usuario_actual}")
-        # Botón para cambiar de modo
         txt_m = "🏠 VISTA INICIO" if st.session_state.modo_panel else "⚙️ PANEL CONTROL"
         if st.button(txt_m, use_container_width=True):
             st.session_state.modo_panel = not st.session_state.modo_panel
@@ -153,7 +144,6 @@ with st.sidebar:
 
         st.divider()
 
-        # 1. NUEVO CÓDIGO
         with st.expander("🆕 Nuevo Código"):
             rm = st.selectbox("Marca", config["marcas"], key="reg_m")
             rc = st.text_input("Código", key="reg_c").upper().strip()
@@ -165,7 +155,6 @@ with st.sidebar:
                     guardar_todo(inv, config, logs); st.rerun()
 
         if st.session_state.usuario_actual == "ADMIN":
-            # 2. USUARIOS
             with st.expander("👥 Gestión de Usuarios"):
                 for user in list(config["usuarios"].keys()):
                     c1, c2 = st.columns([3, 1])
@@ -177,7 +166,6 @@ with st.sidebar:
                 if st.button("💾 Crear Usuario"):
                     if nu: config["usuarios"][nu] = np; guardar_todo(inv, config, logs); st.rerun()
 
-            # 3. MARCAS
             with st.expander("🏷️ Gestión de Marcas"):
                 for m in config["marcas"]:
                     c1, c2 = st.columns([3, 1])
@@ -188,36 +176,52 @@ with st.sidebar:
                 if st.button("➕ Añadir Marca"):
                     if nm and nm not in config["marcas"]: config["marcas"].append(nm); guardar_todo(inv, config, logs); st.rerun()
 
-            # 4. DEPÓSITOS
             with st.expander("🏘️ Gestión de Depósitos"):
                 for d in config["depositos"]:
-                    c1, c2 = st.columns([3, 1])
-                    c1.write(d)
-                    if c2.button("🗑️", key=f"del_dep_{d}"):
+                    c1, c2, c3 = st.columns([2, 0.5, 0.5])
+                    c1.write(f"📍 {d}")
+                    if c2.button("✏️", key=f"ed_dep_b_{d}"): st.session_state[f"edit_dep_{d}"] = True
+                    if c3.button("🗑️", key=f"del_dep_{d}"):
                         config["depositos"].remove(d); guardar_todo(inv, config, logs); st.rerun()
+                    
+                    if st.session_state.get(f"edit_dep_{d}"):
+                        nuevo_n = st.text_input("Nuevo nombre:", value=d, key=f"nn_{d}").upper().strip()
+                        ce1, ce2 = st.columns(2)
+                        if ce1.button("✅ Ok", key=f"sv_d_{d}"):
+                            if nuevo_n and nuevo_n not in config["depositos"]:
+                                config["depositos"][config["depositos"].index(d)] = nuevo_n
+                                # Actualizar productos (Llave y Valor)
+                                nuevas_llaves = {}
+                                for k, v in inv.items():
+                                    if v["deposito"] == d:
+                                        v["deposito"] = nuevo_n
+                                        nuevas_llaves[f"{nuevo_n}_{k.split('_', 1)[1]}"] = v
+                                    else: nuevas_llaves[k] = v
+                                inv.clear(); inv.update(nuevas_llaves)
+                                registrar_log(logs, st.session_state.usuario_actual, "RENOMBRAR", f"{d} -> {nuevo_n}")
+                                guardar_todo(inv, config, logs)
+                                del st.session_state[f"edit_dep_{d}"]; st.rerun()
+                        if ce2.button("❌", key=f"cn_d_{d}"):
+                            del st.session_state[f"edit_dep_{d}"]; st.rerun()
+
                 nd = st.text_input("Nuevo Depósito").upper()
                 if st.button("➕ Añadir Depo"):
                     if nd and nd not in config["depositos"]: config["depositos"].append(nd); guardar_todo(inv, config, logs); st.rerun()
 
-            # 5. TRASLADOS
             with st.expander("🔄 Traslado entre Depósitos"):
                 t_cod = st.text_input("Código a trasladar", key="tr_c").upper().strip()
                 t_origen = st.selectbox("Desde:", config["depositos"], key="t_ori")
                 t_destino = st.selectbox("Hacia:", config["depositos"], key="t_des")
                 t_cant = st.number_input("Cantidad", min_value=1, value=1, key="tr_q")
                 if st.button("Confirmar Traslado"):
-                    id_ori = f"{t_origen}_{t_cod}"
-                    id_des = f"{t_destino}_{t_cod}"
+                    id_ori, id_des = f"{t_origen}_{t_cod}", f"{t_destino}_{t_cod}"
                     if id_ori in inv and inv[id_ori]["stock"] >= t_cant:
                         inv[id_ori]["stock"] -= t_cant
-                        if id_des not in inv:
-                            inv[id_des] = {"marca": inv[id_ori]["marca"], "deposito": t_destino, "stock": 0}
+                        if id_des not in inv: inv[id_des] = {"marca": inv[id_ori]["marca"], "deposito": t_destino, "stock": 0}
                         inv[id_des]["stock"] += t_cant
-                        registrar_log(logs, st.session_state.usuario_actual, "TRASLADO", f"Movi{t_cant} {t_cod}")
+                        registrar_log(logs, st.session_state.usuario_actual, "TRASLADO", f"{t_cant} {t_cod}")
                         guardar_todo(inv, config, logs); st.rerun()
 
-            # 6. HISTORIAL
             with st.expander("📝 Historial"):
-                if st.button("🗑️ Limpiar Historial"): 
-                    logs = []; guardar_todo(inv, config, logs); st.rerun()
+                if st.button("🗑️ Limpiar Historial"): logs = []; guardar_todo(inv, config, logs); st.rerun()
                 for l in logs: st.write(f"<small>{l['fecha']} | {l['usuario']} | {l['detalle']}</small>", unsafe_allow_html=True)
