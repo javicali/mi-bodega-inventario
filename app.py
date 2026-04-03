@@ -9,21 +9,23 @@ from datetime import datetime, timedelta
 NOMBRE_EXCEL = "DB_BODEGA_SISTEMA"
 SCOPE = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
 
-import json
-import gspread
-from oauth2client.service_account import ServiceAccountCredentials
+import base64
 
 def conectar_google():
     try:
         if "gcp_service_account" in st.secrets:
-            # Cargamos los datos como un diccionario
             creds_dict = dict(st.secrets["gcp_service_account"])
             
-            # --- CURACIÓN ANTIBALAS ---
-            # Esto elimina espacios, saltos de línea raros y arregla el 'padding'
-            raw_key = creds_dict["private_key"].strip()
-            # Si la llave se pegó con el formato \n visible, lo convertimos a saltos reales
-            creds_dict["private_key"] = raw_key.replace("\\n", "\n")
+            # --- CURACIÓN MATEMÁTICA DE LA LLAVE ---
+            raw_key = creds_dict["private_key"].strip().replace("\\n", "\n")
+            
+            # Este truco añade los "=" que faltan al final si la cuenta no da múltiplo de 4
+            # Es lo que soluciona el error "number of data characters cannot be 1 more..."
+            missing_padding = len(raw_key) % 4
+            if missing_padding:
+                raw_key += '=' * (4 - missing_padding)
+            
+            creds_dict["private_key"] = raw_key
             
             creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, SCOPE)
         else:
