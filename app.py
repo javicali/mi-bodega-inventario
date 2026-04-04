@@ -26,20 +26,28 @@ def cargar_datos_google():
     try:
         sh = conectar_google()
         if not sh: return {}, def_config, [], None
+        
+        # Cargar Inventario
         ws_inv = sh.worksheet("INVENTARIO")
         datos_inv = ws_inv.get_all_records()
         inv = {f"{r['DEPOSITO']}_{r['CODIGO']}": {"marca": r['MARCA'], "deposito": r['DEPOSITO'], "stock": int(r['STOCK'])} 
                for r in datos_inv if str(r.get('CODIGO')).strip()}
+        
+        # Cargar Configuración (Usuarios, Bodegas, Marcas)
         ws_conf = sh.worksheet("CONFIG")
         df_conf = pd.DataFrame(ws_conf.get_all_records())
         list_users = {str(r['USUARIO']).strip(): str(r['CLAVE']).strip() for _, r in df_conf.iterrows() if str(r.get('USUARIO')).strip()}
         list_depos = [x for x in df_conf['DEPOSITOS'].unique() if str(x).strip()] if 'DEPOSITOS' in df_conf else []
         list_marcas = [x for x in df_conf['MARCAS'].unique() if str(x).strip()] if 'MARCAS' in df_conf else []
+        
         config = {"usuarios": list_users if list_users else def_config["usuarios"],
                   "depositos": list_depos if list_depos else def_config["depositos"],
                   "marcas": list_marcas if list_marcas else def_config["marcas"]}
+        
+        # Cargar Logs
         ws_log = sh.worksheet("LOGS")
         logs_data = ws_log.get_all_records()
+        
         return inv, config, logs_data, sh
     except: return {}, def_config, [], None
 
@@ -65,7 +73,7 @@ def guardar_cambio_google(sh, tab, accion, datos):
     try:
         ws = sh.worksheet(tab)
         if accion == "UPDATE_STOCK":
-            celda = ws.find(datos[0].split("_")[-1])
+            celda = ws.find(str(datos[0].split("_")[-1]))
             if celda: 
                 ws.update_cell(celda.row, 4, datos[1])
                 st.toast(f"✅ Stock actualizado: {datos[0].split('_')[-1]}", icon="📦")
@@ -156,11 +164,11 @@ if st.session_state.get('ver_historial', False):
     st.dataframe(pd.DataFrame(logs).iloc[::-1], use_container_width=True)
 
 elif not st.session_state.get('modo_panel', False):
-    # --- CONSULTA (VISTA PÚBLICA) ---
+    # --- CONSULTA (BÚSQUEDA EXACTA) ---
     st.subheader("🔍 Consulta de Stock")
     col_input, col_lupa = st.columns([4, 1])
     with col_input:
-        codigo_actual = st.text_input("Buscar código:", value=st.session_state.busqueda_interna, placeholder="Ej: 1415 LIONESA", label_visibility="collapsed").upper().strip()
+        codigo_actual = st.text_input("Buscar código exacto:", value=st.session_state.busqueda_interna, placeholder="Escribe el código y pulsa OK", label_visibility="collapsed").upper().strip()
         st.session_state.busqueda_interna = codigo_actual
     with col_lupa:
         btn_lupa = st.button("🔍 OK", use_container_width=True)
@@ -168,7 +176,9 @@ elif not st.session_state.get('modo_panel', False):
     if st.session_state.busqueda_interna or btn_lupa:
         bus = st.session_state.busqueda_interna
         if bus:
-            encontrados = {k: v for k, v in inv.items() if bus in k}
+            # FILTRO EXACTO: Comparamos el código final del ID con la búsqueda
+            encontrados = {k: v for k, v in inv.items() if str(k.split('_')[-1]) == bus}
+            
             if encontrados:
                 for k, v in encontrados.items():
                     color = "green" if v['stock'] > 0 else "red"
@@ -178,12 +188,15 @@ elif not st.session_state.get('modo_panel', False):
                         <p style="margin:0;"><b>Bodega:</b> {v['deposito']} | <b>Marca:</b> {v['marca']}</p>
                         <h2 style="margin:0; color:{color};">Stock: {txt_cajas(v['stock'])}</h2>
                     </div>""", unsafe_allow_html=True)
-                if st.button("🗑️ Limpiar Búsqueda"):
+                if st.button("🗑️ Limpiar Búsqueda", use_container_width=True):
                     st.session_state.busqueda_interna = ""; st.rerun()
-            else: st.error("❌ No se encontró ese código.")
+            else:
+                st.error(f"❌ El código '{bus}' no existe.")
+                if st.button("🔄 Intentar de nuevo"):
+                    st.session_state.busqueda_interna = ""; st.rerun()
 
     st.divider()
-    if st.button("📦 ABRIR BODEGA", use_container_width=True):
+    if st.button("📦 ABRIR BODEGA (LISTADO)", use_container_width=True):
         st.session_state.ver_menu_marcas = not st.session_state.get('ver_menu_marcas', False); st.rerun()
 
     if st.session_state.get('ver_menu_marcas', False):
@@ -197,7 +210,7 @@ elif not st.session_state.get('modo_panel', False):
 else:
     # --- PANEL DE TRABAJO (EDICIÓN) ---
     st.header("🛠️ Panel de Trabajo")
-    bus_ed = st.text_input("🎯 Buscar para editar:", key="bus_edit").upper().strip()
+    bus_ed = st.text_input("🎯 Filtrar para editar:", key="bus_edit").upper().strip()
     if bus_ed:
         for k, v in {k: v for k, v in inv.items() if bus_ed in k}.items(): 
             mostrar_tarjeta(k, v, "rap")
@@ -214,7 +227,7 @@ else:
             for k, v in sorted(it_p.items()):
                 mostrar_tarjeta(k, v, f"pan_{i}")
 
-# --- SIDEBAR (GESTIÓN) ---
+# --- SIDEBAR (GESTIÓN Y REPORTES) ---
 with st.sidebar:
     st.header("🔐 Acceso")
     if not st.session_state.get('edit_mode', False):
@@ -225,6 +238,7 @@ with st.sidebar:
                 st.session_state.edit_mode, st.session_state.usuario_actual = True, u
                 st.toast(f"Bienvenido, {u}", icon="👋")
                 st.rerun()
+            else: st.error("Clave incorrecta")
     else:
         st.write(f"👤 **{st.session_state.usuario_actual}**")
         if st.button("⚙️ PANEL" if not st.session_state.get('modo_panel', False) else "🏠 INICIO", use_container_width=True):
@@ -274,13 +288,12 @@ with st.sidebar:
                 if st.button("➕ Añadir"):
                     guardar_cambio_google(sh, "CONFIG", "ADD_CONFIG", [nb, 3]); recargar(); st.rerun()
 
-            # --- BOTONES FINALES DE ADMIN ---
+            # --- SECCIÓN DE REPORTES (BAJO HISTORIAL) ---
             if st.button("📜 HISTORIAL", use_container_width=True): 
                 st.session_state.ver_historial = True; st.rerun()
             
-            # --- NUEVA UBICACIÓN: REPORTE DE CONTROL FÍSICO ---
             st.write("---")
-            st.markdown("**Reportes**")
+            st.markdown("**📁 Gestión de Datos**")
             data_excel = generar_excel_reporte(inv)
             st.download_button(
                 label="📊 REPORTE DE CONTROL FÍSICO",
