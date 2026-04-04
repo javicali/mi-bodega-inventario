@@ -108,10 +108,8 @@ def confirmar_mov(k, v, cant, op):
     st.warning(f"¿Confirmas que {op} {txt_cajas(cant)} de {k.split('_')[-1]}?")
     c1, c2 = st.columns(2)
     if c1.button("SÍ, GUARDAR", use_container_width=True):
-        # Lógica matemática basada en la etiqueta de texto
         nuevo = v['stock'] + cant if op == 'ENTRÓ' else v['stock'] - cant
         guardar_cambio_google(sh, "INVENTARIO", "UPDATE_STOCK", [k, nuevo])
-        # Guardamos en el LOG exactamente "ENTRÓ" o "SALIÓ"
         guardar_cambio_google(sh, "LOGS", "ADD_LOG", [st.session_state.usuario_actual, op, f"{txt_cajas(cant)} de {k}"])
         recargar(); st.rerun()
     if c2.button("CANCELAR", use_container_width=True): st.rerun()
@@ -133,7 +131,6 @@ st.title("🏢 Bodega Central")
 if st.session_state.get('ver_historial', False):
     st.header("📜 Historial de Movimientos")
     if st.button("⬅️ Volver"): st.session_state.ver_historial = False; st.rerun()
-    # Se muestra el DataFrame donde la columna 'ACCION' ahora dirá ENTRÓ/SALIÓ
     st.dataframe(pd.DataFrame(logs).iloc[::-1], use_container_width=True)
 
 elif not st.session_state.get('modo_panel', False):
@@ -143,7 +140,7 @@ elif not st.session_state.get('modo_panel', False):
     with col_input:
         bus_p = st.text_input("Código:", key=f"in_pub_{st.session_state.reset_pub}", placeholder="Ej: 212", label_visibility="collapsed").upper().strip()
     with col_lupa:
-        btn_lupa = st.button("🔍 OK", use_container_width=True)
+        btn_lupa = st.button("🔍 OK", key="btn_lupa_pub", use_container_width=True)
 
     if bus_p or btn_lupa:
         encontrados = {k: v for k, v in inv.items() if str(k.split('_')[-1]) == bus_p}
@@ -168,13 +165,20 @@ elif not st.session_state.get('modo_panel', False):
 else:
     # --- PANEL DE TRABAJO ---
     st.header("🛠️ Panel de Trabajo")
-    bus_e = st.text_input("🎯 Código exacto:", key=f"in_pan_{st.session_state.reset_pan}").upper().strip()
-    if bus_e:
+    
+    # Nuevo diseño de buscador con botón en el Panel de Trabajo
+    col_in_pan, col_btn_pan = st.columns([4, 1])
+    with col_in_pan:
+        bus_e = st.text_input("🎯 Código exacto:", key=f"in_pan_{st.session_state.reset_pan}", label_visibility="collapsed", placeholder="Buscar código...").upper().strip()
+    with col_btn_pan:
+        btn_ok_pan = st.button("🔍 OK", key="btn_ok_pan", use_container_width=True)
+
+    if bus_e or btn_ok_pan:
         encontrados_ed = {k: v for k, v in inv.items() if str(k.split('_')[-1]) == bus_e}
         if encontrados_ed:
             for k, v in encontrados_ed.items(): mostrar_tarjeta(k, v, "rap")
             if st.button("🗑️ Limpiar Filtro"): st.session_state.reset_pan += 1; st.rerun()
-        else:
+        elif bus_e:
             st.warning(f"⚠️ No existe el código '{bus_e}'")
             if st.button("🔄 Borrar"): st.session_state.reset_pan += 1; st.rerun()
 
