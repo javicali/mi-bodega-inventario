@@ -26,25 +26,20 @@ def cargar_datos_google():
     try:
         sh = conectar_google()
         if not sh: return {}, def_config, [], None
-        
         ws_inv = sh.worksheet("INVENTARIO")
         datos_inv = ws_inv.get_all_records()
         inv = {f"{r['DEPOSITO']}_{r['CODIGO']}": {"marca": r['MARCA'], "deposito": r['DEPOSITO'], "stock": int(r['STOCK'])} 
                for r in datos_inv if str(r.get('CODIGO')).strip()}
-        
         ws_conf = sh.worksheet("CONFIG")
         df_conf = pd.DataFrame(ws_conf.get_all_records())
         list_users = {str(r['USUARIO']).strip(): str(r['CLAVE']).strip() for _, r in df_conf.iterrows() if str(r.get('USUARIO')).strip()}
         list_depos = [x for x in df_conf['DEPOSITOS'].unique() if str(x).strip()] if 'DEPOSITOS' in df_conf else []
         list_marcas = [x for x in df_conf['MARCAS'].unique() if str(x).strip()] if 'MARCAS' in df_conf else []
-        
         config = {"usuarios": list_users if list_users else def_config["usuarios"],
                   "depositos": list_depos if list_depos else def_config["depositos"],
                   "marcas": list_marcas if list_marcas else def_config["marcas"]}
-        
         ws_log = sh.worksheet("LOGS")
         logs_data = ws_log.get_all_records()
-        
         return inv, config, logs_data, sh
     except: return {}, def_config, [], None
 
@@ -115,8 +110,11 @@ def txt_cajas(n):
 # --- 2. INICIALIZACIÓN ---
 st.set_page_config(page_title="Bodega Pro Ultra", layout="wide")
 
-if 'busqueda_interna' not in st.session_state:
-    st.session_state.busqueda_interna = ""
+# Inicialización de estados de búsqueda
+if 'busqueda_publica' not in st.session_state:
+    st.session_state.busqueda_publica = ""
+if 'busqueda_panel' not in st.session_state:
+    st.session_state.busqueda_panel = ""
 
 def recargar():
     st.session_state.inv, st.session_state.config, st.session_state.logs, st.session_state.sh = cargar_datos_google()
@@ -160,32 +158,39 @@ if st.session_state.get('ver_historial', False):
     st.dataframe(pd.DataFrame(logs).iloc[::-1], use_container_width=True)
 
 elif not st.session_state.get('modo_panel', False):
-    # --- CONSULTA PÚBLICA (COINCIDENCIA EXACTA) ---
+    # --- CONSULTA PÚBLICA (COINCIDENCIA EXACTA + LIMPIEZA) ---
     st.subheader("🔍 Consulta de Stock")
     col_input, col_lupa = st.columns([4, 1])
+    
     with col_input:
-        codigo_actual = st.text_input("Código exacto:", value=st.session_state.busqueda_interna, placeholder="Ej: 212", label_visibility="collapsed").upper().strip()
-        st.session_state.busqueda_interna = codigo_actual
+        # Vinculamos el texto directamente al session_state
+        bus_p = st.text_input("Código exacto:", value=st.session_state.busqueda_publica, key="txt_pub", placeholder="Ej: 212", label_visibility="collapsed").upper().strip()
+        st.session_state.busqueda_publica = bus_p
+
     with col_lupa:
         btn_lupa = st.button("🔍 OK", use_container_width=True)
 
-    if st.session_state.busqueda_interna or btn_lupa:
-        bus = st.session_state.busqueda_interna
-        if bus:
-            encontrados = {k: v for k, v in inv.items() if str(k.split('_')[-1]) == bus}
-            if encontrados:
-                for k, v in encontrados.items():
-                    color = "green" if v['stock'] > 0 else "red"
-                    st.markdown(f"""
-                    <div style="border: 2px solid {color}; padding: 15px; border-radius: 10px; margin-bottom: 10px;">
-                        <h3 style="margin:0;">📦 {k.split('_')[-1]}</h3>
-                        <p style="margin:0;"><b>Bodega:</b> {v['deposito']} | <b>Marca:</b> {v['marca']}</p>
-                        <h2 style="margin:0; color:{color};">Stock: {txt_cajas(v['stock'])}</h2>
-                    </div>""", unsafe_allow_html=True)
-                if st.button("🗑️ Limpiar", use_container_width=True):
-                    st.session_state.busqueda_interna = ""; st.rerun()
-            else:
-                st.error(f"❌ El código '{bus}' no existe.")
+    if st.session_state.busqueda_publica:
+        bus = st.session_state.busqueda_publica
+        encontrados = {k: v for k, v in inv.items() if str(k.split('_')[-1]) == bus}
+        if encontrados:
+            for k, v in encontrados.items():
+                color = "green" if v['stock'] > 0 else "red"
+                st.markdown(f"""
+                <div style="border: 2px solid {color}; padding: 15px; border-radius: 10px; margin-bottom: 10px;">
+                    <h3 style="margin:0;">📦 {k.split('_')[-1]}</h3>
+                    <p style="margin:0;"><b>Bodega:</b> {v['deposito']} | <b>Marca:</b> {v['marca']}</p>
+                    <h2 style="margin:0; color:{color};">Stock: {txt_cajas(v['stock'])}</h2>
+                </div>""", unsafe_allow_html=True)
+            
+            if st.button("🗑️ Limpiar Búsqueda", use_container_width=True):
+                st.session_state.busqueda_publica = ""
+                st.rerun()
+        else:
+            st.error(f"❌ El código '{bus}' no existe.")
+            if st.button("🔄 Borrar", key="btn_error_pub"):
+                st.session_state.busqueda_publica = ""
+                st.rerun()
 
     st.divider()
     if st.button("📦 VER LISTADO POR BODEGA", use_container_width=True):
@@ -197,21 +202,27 @@ elif not st.session_state.get('modo_panel', False):
         if items_bodega:
             for kid, info in sorted(items_bodega.items(), key=lambda x: x[1]['marca']):
                 st.write(f"🔹 **{kid.split('_')[-1]}** | {info['marca']} | **{txt_cajas(info['stock'])}**")
-        else: st.warning("No hay artículos con stock.")
 
 else:
-    # --- PANEL DE TRABAJO (EDICIÓN CON COINCIDENCIA EXACTA) ---
+    # --- PANEL DE TRABAJO (EDICIÓN EXACTA + LIMPIEZA) ---
     st.header("🛠️ Panel de Trabajo")
-    bus_ed = st.text_input("🎯 Código exacto para editar:", key="bus_edit").upper().strip()
-    if bus_ed:
-        encontrados_ed = {k: v for k, v in inv.items() if str(k.split('_')[-1]) == bus_ed}
+    
+    bus_e = st.text_input("🎯 Código exacto para editar:", value=st.session_state.busqueda_panel, key="txt_pan").upper().strip()
+    st.session_state.busqueda_panel = bus_e
+
+    if st.session_state.busqueda_panel:
+        encontrados_ed = {k: v for k, v in inv.items() if str(k.split('_')[-1]) == st.session_state.busqueda_panel}
         if encontrados_ed:
             for k, v in encontrados_ed.items(): 
                 mostrar_tarjeta(k, v, "rap")
+            if st.button("🗑️ Limpiar Filtro"):
+                st.session_state.busqueda_panel = ""
+                st.rerun()
         else:
-            st.warning(f"⚠️ No existe el código exacto '{bus_ed}'")
-        if st.button("🗑️ Limpiar Filtro"):
-            st.session_state.bus_edit = ""; st.rerun()
+            st.warning(f"⚠️ No existe el código '{st.session_state.busqueda_panel}'")
+            if st.button("🔄 Borrar", key="btn_error_pan"):
+                st.session_state.busqueda_panel = ""
+                st.rerun()
 
     st.divider()
     dep_p = st.selectbox("Bodega:", config["depositos"], key="sel_dep_edit")
@@ -287,7 +298,6 @@ with st.sidebar:
             if st.button("📜 HISTORIAL", use_container_width=True): 
                 st.session_state.ver_historial = True; st.rerun()
             
-            # --- REPORTE EXCEL DEBAJO DEL HISTORIAL ---
             st.divider()
             st.markdown("**📂 Descargas**")
             data_excel = generar_excel_reporte(inv)
