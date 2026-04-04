@@ -10,35 +10,14 @@ import io
 NOMBRE_EXCEL = "DB_BODEGA_SISTEMA"
 SCOPE = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
 
-import re
-
 def conectar_google():
     try:
         if "gcp_service_account" in st.secrets:
             creds_dict = dict(st.secrets["gcp_service_account"])
-            
-            # --- LIMPIEZA Y REPARACIÓN MAESTRA ---
-            raw_key = creds_dict["private_key"]
-            
-            # 1. Extraemos solo el corazón de la llave
-            if "-----BEGIN PRIVATE KEY-----" in raw_key:
-                key_body = raw_key.split("-----BEGIN PRIVATE KEY-----")[1].split("-----END PRIVATE KEY-----")[0]
-                
-                # 2. Quitamos espacios, saltos de línea y basura invisible
-                clean_key = re.sub(r'\s+', '', key_body)
-                
-                # 3. AUTO-REPARACIÓN DE PADDING (El truco final)
-                # Si a la llave le faltan caracteres para ser múltiplo de 4, se los ponemos
-                missing_padding = len(clean_key) % 4
-                if missing_padding:
-                    clean_key += '=' * (4 - missing_padding)
-                
-                # 4. Reconstruimos la llave perfecta
-                creds_dict["private_key"] = f"-----BEGIN PRIVATE KEY-----\n{clean_key}\n-----END PRIVATE KEY-----\n"
-            
+            # El .replace garantiza que el \n se convierta en un salto de línea real
+            creds_dict["private_key"] = creds_dict["private_key"].replace("\\n", "\n")
             creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, SCOPE)
         else:
-            # Respaldo para tu iMac
             creds = ServiceAccountCredentials.from_json_keyfile_name('creds.json', SCOPE)
             
         client = gspread.authorize(creds)
