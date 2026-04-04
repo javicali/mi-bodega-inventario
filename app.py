@@ -61,15 +61,15 @@ def guardar_cambio_google(sh, tab, accion, datos):
             col_vals = ws.col_values(datos[1])
             ws.update_cell(len(col_vals) + 1, datos[1], datos[0])
         elif accion == "DEL_CONFIG":
-            # datos = [valor_a_borrar, columna]
             celda = ws.find(datos[0])
             if celda and celda.col == datos[1]: ws.update_cell(celda.row, datos[1], "")
         elif accion == "RENAME_CONFIG":
-            # datos = [valor_viejo, valor_nuevo, columna]
             celda = ws.find(datos[0])
             if celda and celda.col == datos[2]: ws.update_cell(celda.row, datos[2], datos[1])
         elif accion == "MANAGE_USER":
-            if datos[2] == "CREAR": ws.append_row([datos[0], datos[1]])
+            # datos = [usuario, clave, operacion]
+            if datos[2] == "CREAR":
+                ws.append_row([datos[0], datos[1]], value_input_option='RAW')
             elif datos[2] == "ELIMINAR":
                 celda = ws.find(datos[0])
                 if celda and celda.col == 1: ws.delete_rows(celda.row)
@@ -142,7 +142,7 @@ else:
     dep_p = st.selectbox("Bodega de trabajo:", config["depositos"])
     tabs_p = st.tabs(config["marcas"])
     for i, m_p in enumerate(config["marcas"]):
-        with tabs_p[i]:
+        with tbs[i]:
             for k, v in sorted({k: v for k, v in inv.items() if v['marca']==m_p and v['deposito']==dep_p}.items()):
                 mostrar_tarjeta(k, v, f"tab_{i}")
 
@@ -165,44 +165,57 @@ with st.sidebar:
         if st.session_state.usuario_actual.upper() == "ADMIN":
             if st.button("📜 HISTORIAL"): st.session_state.ver_historial=True; st.rerun()
 
+            # --- GESTIÓN USUARIOS (NUEVO DISEÑO) ---
+            with st.expander("👤 Gestión de Usuarios"):
+                st.subheader("➕ Crear Nuevo")
+                nu_nom = st.text_input("Nombre Nuevo Usuario").upper().strip()
+                nu_cla = st.text_input("Clave Nueva", type="password", key="cl1")
+                if st.button("🚀 Crear Usuario"):
+                    if nu_nom and nu_cla:
+                        guardar_cambio_google(sh, "CONFIG", "MANAGE_USER", [nu_nom, nu_cla, "CREAR"])
+                        st.success("¡Usuario creado!")
+                        st.session_state.clear(); st.rerun()
+                
+                st.divider()
+                st.subheader("📝 Modificar / 🗑️ Eliminar")
+                u_sel = st.selectbox("Seleccionar Usuario:", [u for u in config["usuarios"].keys() if u != "ADMIN"], key="u_edit")
+                new_p = st.text_input("Nueva Contraseña", type="password", key="cl2")
+                
+                col1, col2 = st.columns(2)
+                if col1.button("💾 Modificar"):
+                    if new_p:
+                        guardar_cambio_google(sh, "CONFIG", "MANAGE_USER", [u_sel, new_p, "MODIFICAR"])
+                        st.session_state.clear(); st.rerun()
+                if col2.button("🗑️ Eliminar"):
+                    guardar_cambio_google(sh, "CONFIG", "MANAGE_USER", [u_sel, "", "ELIMINAR"])
+                    st.session_state.clear(); st.rerun()
+
             # --- GESTIÓN BODEGAS ---
             with st.expander("🏘️ Bodegas"):
                 b_sel = st.selectbox("Seleccionar Bodega:", config["depositos"], key="b_edit")
-                nuevo_nb = st.text_input("Nuevo nombre para esta bodega:").upper().strip()
-                if st.button("📝 Renombrar Bodega"):
+                nuevo_nb = st.text_input("Renombrar a:").upper().strip()
+                if st.button("📝 Cambiar Nombre"):
                     if nuevo_nb: guardar_cambio_google(sh, "CONFIG", "RENAME_CONFIG", [b_sel, nuevo_nb, 3]); st.session_state.clear(); st.rerun()
                 st.divider()
-                nb = st.text_input("Añadir Nueva Bodega").upper().strip()
-                if st.button("➕ Añadir"):
+                nb = st.text_input("Añadir Bodega").upper().strip()
+                if st.button("➕ Añadir Bodega"):
                     if nb: guardar_cambio_google(sh, "CONFIG", "ADD_CONFIG", [nb, 3]); st.session_state.clear(); st.rerun()
 
             # --- GESTIÓN MARCAS ---
             with st.expander("🏷️ Marcas"):
                 m_del = st.selectbox("Seleccionar Marca:", config["marcas"], key="m_edit")
-                if st.button("🗑️ Eliminar Marca"):
+                if st.button("🗑️ Eliminar esta Marca"):
                     guardar_cambio_google(sh, "CONFIG", "DEL_CONFIG", [m_del, 4]); st.session_state.clear(); st.rerun()
                 st.divider()
-                nm = st.text_input("Añadir Nueva Marca").upper().strip()
-                if st.button("➕ Añadir "):
+                nm = st.text_input("Añadir Marca").upper().strip()
+                if st.button("➕ Añadir Marca"):
                     if nm: guardar_cambio_google(sh, "CONFIG", "ADD_CONFIG", [nm, 4]); st.session_state.clear(); st.rerun()
-
-            # --- GESTIÓN USUARIOS ---
-            with st.expander("👤 Usuarios"):
-                u_sel = st.selectbox("Elegir Usuario:", list(config["usuarios"].keys()), key="u_manage")
-                new_p = st.text_input("Nueva Clave / Crear Clave", type="password")
-                c1, c2 = st.columns(2)
-                if c1.button("💾 Guardar/Mod"):
-                    op = "MODIFICAR" if u_sel in config["usuarios"] else "CREAR"
-                    guardar_cambio_google(sh, "CONFIG", "MANAGE_USER", [u_sel, new_p, op]); st.session_state.clear(); st.rerun()
-                if u_sel != "ADMIN":
-                    if c2.button("🗑️ Eliminar"):
-                        guardar_cambio_google(sh, "CONFIG", "MANAGE_USER", [u_sel, "", "ELIMINAR"]); st.session_state.clear(); st.rerun()
 
         with st.expander("🆕 Nuevo Código"):
             nma = st.selectbox("Marca", config["marcas"], key="nma_")
             nco = st.text_input("Código").upper().strip()
             nbo = st.selectbox("Bodega", config["depositos"], key="nbo_")
-            if st.button("💾 Crear"):
+            if st.button("💾 Crear Item"):
                 if nco: guardar_cambio_google(sh, "INVENTARIO", "NUEVO_ITEM", [nma, nbo, nco, 0]); st.session_state.clear(); st.rerun()
 
         if st.button("🔒 Salir"): st.session_state.edit_mode = False; st.rerun()
