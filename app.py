@@ -84,10 +84,6 @@ if 'data_loaded' not in st.session_state:
     recargar()
     st.session_state.data_loaded = True
 
-# Variables de estado para los botones del inicio
-if 'ver_buscador' not in st.session_state: st.session_state.ver_buscador = False
-if 'ver_menu_marcas' not in st.session_state: st.session_state.ver_menu_marcas = False
-
 inv, config, logs, sh = st.session_state.inv, st.session_state.config, st.session_state.logs, st.session_state.sh
 
 if 'edit_mode' not in st.session_state: st.session_state.edit_mode = False
@@ -128,49 +124,50 @@ if st.session_state.ver_historial:
     st.dataframe(pd.DataFrame(logs).iloc[::-1], use_container_width=True)
 
 elif not st.session_state.modo_panel:
-    # --- BOTONES DE INICIO ---
-    col1, col2 = st.columns(2)
+    # --- BUSCADOR CON BOTÓN OK ---
+    st.subheader("🔍 Buscar Producto")
+    c_input, c_ok = st.columns([4, 1])
+    codigo_buscado = c_input.text_input("Ingresa el código:", placeholder="Escribe aquí...", label_visibility="collapsed").upper().strip()
     
-    if col1.button("🔍 BUSCAR CÓDIGO", use_container_width=True):
-        st.session_state.ver_buscador = not st.session_state.ver_buscador
-        st.session_state.ver_menu_marcas = False
-        st.rerun()
-        
-    if col2.button("📋 MENÚ DE MARCAS", use_container_width=True):
-        st.session_state.ver_menu_marcas = not st.session_state.ver_menu_marcas
-        st.session_state.ver_buscador = False
-        st.rerun()
+    if c_ok.button("🔍 OK", use_container_width=True):
+        if codigo_buscado:
+            encontrados = {k: v for k, v in inv.items() if codigo_buscado in k}
+            if encontrados:
+                for k, v in encontrados.items():
+                    color = "green" if v['stock'] > 0 else "red"
+                    st.markdown(f"""
+                    <div style="border: 2px solid {color}; padding: 15px; border-radius: 10px; margin-bottom: 10px;">
+                        <h3 style="margin:0;">📦 {k.split('_')[-1]}</h3>
+                        <p style="margin:0;"><b>Ubicación:</b> {v['deposito']} | <b>Marca:</b> {v['marca']}</p>
+                        <h2 style="margin:0; color:{color};">Stock: {v['stock']}</h2>
+                    </div>
+                    """, unsafe_allow_html=True)
+            else:
+                st.error("❌ No se encontró ese código.")
+        else:
+            st.warning("Escribe algo para buscar.")
 
     st.divider()
 
-    # --- LÓGICA DEL BUSCADOR ---
-    if st.session_state.ver_buscador:
-        c_bus1, c_bus2 = st.columns([3, 1])
-        busq = c_bus1.text_input("Ingresa el código:", key="input_busq").upper().strip()
-        if c_bus2.button("CONFIRMAR", use_container_width=True):
-            if busq:
-                res = {k: v for k, v in inv.items() if busq in k}
-                if res:
-                    for k, v in res.items():
-                        st.success(f"📍 **{v['deposito']}** | {v['marca']} | **Stock: {v['stock']}**")
-                else:
-                    st.error("No existe ese código.")
+    # --- BOTÓN PARA EL MENÚ DE MARCAS ---
+    if st.button("📋 ABRIR MENÚ DE MARCAS / BODEGAS", use_container_width=True):
+        st.session_state.ver_menu_marcas = not st.session_state.get('ver_menu_marcas', False)
+        st.rerun()
 
-    # --- LÓGICA DEL MENÚ DE MARCAS ---
-    if st.session_state.ver_menu_marcas:
+    if st.session_state.get('ver_menu_marcas', False):
+        st.info("📂 Filtrar por ubicación y marca")
         c_m1, c_m2 = st.columns(2)
         d_v = c_m1.selectbox("Bodega:", config["depositos"])
         mlist = config["marcas"] if config["marcas"] else ["GENERAL"]
         m_v = c_m2.selectbox("Marca:", mlist)
         
-        st.write(f"### Lista: {m_v} en {d_v}")
         items_f = {k: v for k, v in inv.items() if v['marca']==m_v and v['deposito']==d_v}
         if items_f:
             for kid, info in sorted(items_f.items()):
                 prefix = "✅" if info['stock'] > 0 else "❌"
                 st.write(f"{prefix} **{kid.split('_')[-1]}**: {info['stock']} cajas")
         else:
-            st.info("No hay artículos aquí.")
+            st.write("No hay artículos en esta selección.")
 
 else:
     # --- PANEL DE EDICIÓN ---
