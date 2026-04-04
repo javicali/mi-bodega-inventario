@@ -118,15 +118,25 @@ elif not st.session_state.modo_panel:
     busq = st.text_input("Código", placeholder="Buscar...", key="bus_main").upper().strip()
     if busq:
         for k, v in {k: v for k, v in inv.items() if busq in k}.items():
-            st.success(f"✅ {v['deposito']} | {v['marca']} | {k.split('_')[-1]} | STOCK: {v['stock']}")
+            if v['stock'] > 0: st.success(f"✅ {v['deposito']} | {v['marca']} | {k.split('_')[-1]} | STOCK: {v['stock']}")
+            else: st.error(f"🚨 SIN STOCK: {v['deposito']} | {v['marca']} | {k.split('_')[-1]}")
     st.divider()
     d_v = st.selectbox("Bodega:", config["depositos"], key="sel_dep_main")
     mlist = config["marcas"] if config["marcas"] else ["GENERAL"]
     tabs_m = st.tabs(mlist)
     for i, m in enumerate(mlist):
         with tabs_m[i]:
-            for kid, info in sorted({k: v for k, v in inv.items() if v['marca']==m and v['deposito']==d_v}.items()):
+            items_totales = {k: v for k, v in inv.items() if v['marca']==m and v['deposito']==d_v}
+            con_stock = {k: v for k, v in items_totales.items() if v['stock'] > 0}
+            sin_stock = {k: v for k, v in items_totales.items() if v['stock'] == 0}
+            
+            for kid, info in sorted(con_stock.items()):
                 st.write(f"**{kid.split('_')[-1]}**: {info['stock']} cajas")
+            
+            if sin_stock:
+                with st.expander("🚫 ARTÍCULOS SIN STOCK"):
+                    for kid, info in sorted(sin_stock.items()):
+                        st.write(f"❌ {kid.split('_')[-1]}")
 else:
     st.header("🛠️ Panel Edición")
     bus_ed = st.text_input("🎯 Buscar código rápido:", key="bus_edit").upper().strip()
@@ -138,10 +148,17 @@ else:
     tabs_e = st.tabs(mlist_e)
     for i, m_p in enumerate(mlist_e):
         with tabs_e[i]:
-            for k, v in sorted({k: v for k, v in inv.items() if v['marca']==m_p and v['deposito']==dep_p}.items()):
-                mostrar_tarjeta(k, v, f"pan_{i}")
+            items_panel = {k: v for k, v in inv.items() if v['marca']==m_p and v['deposito']==dep_p}
+            con_s_p = {k: v for k, v in items_panel.items() if v['stock'] > 0}
+            sin_s_p = {k: v for k, v in items_panel.items() if v['stock'] == 0}
+            
+            for k, v in sorted(con_s_p.items()): mostrar_tarjeta(k, v, f"pan_{i}")
+            
+            if sin_s_p:
+                with st.expander("🚫 ARTÍCULOS SIN STOCK"):
+                    for k, v in sorted(sin_s_p.items()): mostrar_tarjeta(k, v, f"sin_{i}")
 
-# --- SIDEBAR ---
+# --- SIDEBAR (SE MANTIENE IGUAL) ---
 with st.sidebar:
     st.header("🔐 Acceso")
     if not st.session_state.edit_mode:
