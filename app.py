@@ -105,13 +105,13 @@ inv, config, logs, sh = st.session_state.inv, st.session_state.config, st.sessio
 # --- DIALOGOS ---
 @st.dialog("Confirmar Movimiento")
 def confirmar_mov(k, v, cant, op):
-    # Traducción visual para el usuario
-    msg_op = "ENTRADA" if op == "ENTRÓ" else "SALIDA"
-    st.warning(f"¿Confirmas {msg_op} de {txt_cajas(cant)} para {k.split('_')[-1]}?")
+    st.warning(f"¿Confirmas que {op} {txt_cajas(cant)} de {k.split('_')[-1]}?")
     c1, c2 = st.columns(2)
     if c1.button("SÍ, GUARDAR", use_container_width=True):
+        # Lógica matemática basada en la etiqueta de texto
         nuevo = v['stock'] + cant if op == 'ENTRÓ' else v['stock'] - cant
         guardar_cambio_google(sh, "INVENTARIO", "UPDATE_STOCK", [k, nuevo])
+        # Guardamos en el LOG exactamente "ENTRÓ" o "SALIÓ"
         guardar_cambio_google(sh, "LOGS", "ADD_LOG", [st.session_state.usuario_actual, op, f"{txt_cajas(cant)} de {k}"])
         recargar(); st.rerun()
     if c2.button("CANCELAR", use_container_width=True): st.rerun()
@@ -131,8 +131,9 @@ def mostrar_tarjeta(k, v, suf):
 st.title("🏢 Bodega Central")
 
 if st.session_state.get('ver_historial', False):
-    st.header("📜 Historial")
+    st.header("📜 Historial de Movimientos")
     if st.button("⬅️ Volver"): st.session_state.ver_historial = False; st.rerun()
+    # Se muestra el DataFrame donde la columna 'ACCION' ahora dirá ENTRÓ/SALIÓ
     st.dataframe(pd.DataFrame(logs).iloc[::-1], use_container_width=True)
 
 elif not st.session_state.get('modo_panel', False):
