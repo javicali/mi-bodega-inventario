@@ -157,16 +157,35 @@ elif not st.session_state.get('modo_panel', False):
     st.divider()
     if st.button("📦 VER LISTADO POR BODEGA", use_container_width=True):
         st.session_state.ver_menu_marcas = not st.session_state.get('ver_menu_marcas', False); st.rerun()
+    
     if st.session_state.get('ver_menu_marcas', False):
-        d_v = st.selectbox("Selecciona la Bodega:", config["depositos"])
-        for kid, info in sorted({k: v for k, v in inv.items() if v['deposito'] == d_v and v['stock'] > 0}.items(), key=lambda x: x[1]['marca']):
-            st.write(f"🔹 **{kid.split('_')[-1]}** | {info['marca']} | **{txt_cajas(info['stock'])}**")
+        col_bod, col_ord = st.columns(2)
+        with col_bod:
+            d_v = st.selectbox("Selecciona la Bodega:", config["depositos"])
+        with col_ord:
+            orden = st.selectbox("Ordenar por:", ["A-Z (Alfabético)", "Mayor Stock ⬆️", "Menor Stock ⬇️"])
+
+        # Filtrar ítems de la bodega elegida
+        items_bodega = {k: v for k, v in inv.items() if v['deposito'] == d_v and v['stock'] > 0}
+        lista_final = []
+        for k, v in items_bodega.items():
+            lista_final.append({'codigo': k.split('_')[-1], 'marca': v['marca'], 'stock': v['stock']})
+
+        # Lógica de Ordenamiento
+        if orden == "A-Z (Alfabético)":
+            lista_final = sorted(lista_final, key=lambda x: x['codigo'])
+        elif orden == "Mayor Stock ⬆️":
+            lista_final = sorted(lista_final, key=lambda x: x['stock'], reverse=True)
+        elif orden == "Menor Stock ⬇️":
+            lista_final = sorted(lista_final, key=lambda x: x['stock'])
+
+        # Mostrar resultados
+        for item in lista_final:
+            st.write(f"🔹 **{item['codigo']}** | {item['marca']} | **{txt_cajas(item['stock'])}**")
 
 else:
     # --- PANEL DE TRABAJO ---
     st.header("🛠️ Panel de Trabajo")
-    
-    # Nuevo diseño de buscador con botón en el Panel de Trabajo
     col_in_pan, col_btn_pan = st.columns([4, 1])
     with col_in_pan:
         bus_e = st.text_input("🎯 Código exacto:", key=f"in_pan_{st.session_state.reset_pan}", label_visibility="collapsed", placeholder="Buscar código...").upper().strip()
