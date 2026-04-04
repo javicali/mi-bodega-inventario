@@ -74,6 +74,10 @@ def guardar_cambio_google(sh, tab, accion, datos):
                 if celda and celda.col == 1: ws.update_cell(celda.row, 2, datos[1])
     except: st.error("⚠️ Error de comunicación")
 
+# --- FUNCION AUXILIAR PARA EL PLURAL ---
+def txt_cajas(n):
+    return f"{n} caja" if n == 1 else f"{n} cajas"
+
 # --- 2. INICIALIZACIÓN ---
 st.set_page_config(page_title="Bodega Pro Ultra", layout="wide")
 
@@ -93,12 +97,12 @@ if 'ver_historial' not in st.session_state: st.session_state.ver_historial = Fal
 # --- DIALOGOS ---
 @st.dialog("Confirmar Movimiento")
 def confirmar_mov(k, v, cant, op):
-    st.warning(f"¿Confirmas {op} {cant} cajas a {k.split('_')[-1]}?")
+    st.warning(f"¿Confirmas {op} {txt_cajas(cant)} a {k.split('_')[-1]}?")
     c1, c2 = st.columns(2)
     if c1.button("SÍ, GUARDAR", use_container_width=True):
         nuevo = v['stock'] + cant if op == 'SUMAR' else v['stock'] - cant
         guardar_cambio_google(sh, "INVENTARIO", "UPDATE_STOCK", [k, nuevo])
-        guardar_cambio_google(sh, "LOGS", "ADD_LOG", [st.session_state.usuario_actual, op, f"{cant} cajas de {k}"])
+        guardar_cambio_google(sh, "LOGS", "ADD_LOG", [st.session_state.usuario_actual, op, f"{txt_cajas(cant)} de {k}"])
         recargar()
         st.rerun()
     if c2.button("CANCELAR", use_container_width=True): st.rerun()
@@ -108,7 +112,7 @@ def mostrar_tarjeta(k, v, suf, permite_borrar=False):
     with st.container(border=True):
         c1, c2, c3 = st.columns([2, 1, 3])
         c1.markdown(f"**{k.split('_')[-1]}**\n<small>{v['marca']} | {v['deposito']}</small>", unsafe_allow_html=True)
-        c2.write(f"📦 {v['stock']} cajas")
+        c2.write(f"📦 {txt_cajas(v['stock'])}")
         with c3:
             cant = st.number_input("n", min_value=1, key=f"n_{suf}_{k}", label_visibility="collapsed")
             cols_btn = st.columns(2)
@@ -139,7 +143,7 @@ elif not st.session_state.modo_panel:
                     <div style="border: 2px solid {color}; padding: 15px; border-radius: 10px; margin-bottom: 10px;">
                         <h3 style="margin:0;">📦 {k.split('_')[-1]}</h3>
                         <p style="margin:0;"><b>Ubicación:</b> {v['deposito']} | <b>Marca:</b> {v['marca']}</p>
-                        <h2 style="margin:0; color:{color};">Stock: {v['stock']} cajas</h2>
+                        <h2 style="margin:0; color:{color};">Stock: {txt_cajas(v['stock'])}</h2>
                     </div>
                     """, unsafe_allow_html=True)
             else:
@@ -154,14 +158,12 @@ elif not st.session_state.modo_panel:
 
     if st.session_state.get('ver_menu_marcas', False):
         d_v = st.selectbox("Selecciona la Bodega:", config["depositos"])
-        
         st.info(f"📋 Artículos con Stock en: **{d_v}**")
-        
         items_bodega = {k: v for k, v in inv.items() if v['deposito'] == d_v and v['stock'] > 0}
         
         if items_bodega:
             for kid, info in sorted(items_bodega.items(), key=lambda x: x[1]['marca']):
-                st.write(f"🔹 **{kid.split('_')[-1]}** | Marca: {info['marca']} | **Stock: {info['stock']} cajas**")
+                st.write(f"🔹 **{kid.split('_')[-1]}** | Marca: {info['marca']} | **Stock: {txt_cajas(info['stock'])}**")
         else:
             st.warning("No hay artículos con stock en esta bodega.")
 
@@ -194,7 +196,6 @@ with st.sidebar:
                 st.rerun()
     else:
         st.write(f"👤 **{st.session_state.usuario_actual}**")
-        
         if st.button("⚙️ PANEL" if not st.session_state.modo_panel else "🏠 INICIO", use_container_width=True):
             st.session_state.modo_panel = not st.session_state.modo_panel
             st.rerun()
