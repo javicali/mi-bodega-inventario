@@ -156,14 +156,12 @@ if st.session_state.get('ver_historial', False):
     st.dataframe(pd.DataFrame(logs).iloc[::-1], use_container_width=True)
 elif not st.session_state.get('modo_panel', False):
     st.subheader("🔍 Consulta")
-    # El botón de limpiar solo aparece si hay texto en el input
     col_input, col_lupa, col_clear = st.columns([4, 1, 1])
     with col_input: 
         bus_p = st.text_input("Código:", key=f"in_pub_{st.session_state.reset_pub}", label_visibility="collapsed").upper().strip()
     with col_lupa: 
         btn_lupa = st.button("🔍 OK", key="btn_lupa_pub", use_container_width=True)
     with col_clear:
-        # Lógica dinámica para el botón Limpiar en Inicio
         if bus_p:
             if st.button("🧹", key="btn_clear_pub", use_container_width=True):
                 st.session_state.reset_pub += 1; st.rerun()
@@ -172,7 +170,8 @@ elif not st.session_state.get('modo_panel', False):
         enc = {k: v for k, v in inv.items() if str(k.split('_')[-1]) == bus_p}
         for k, v in enc.items():
             color = "green" if v['stock'] > 0 else "red"
-            st.markdown(f'<div style="border:2px solid {color};padding:15px;border-radius:10px;"><h3>📦 {k.split("_")[-1]}</h3><p>{v["deposito"]} | {v["marca"]}</p><h2 style="color:{color};">Stock: {txt_cajas(v["stock"])}</h2></div>', unsafe_allow_html=True)
+            # Se eliminó la palabra "Stock:" para mostrar solo el número de cajas
+            st.markdown(f'<div style="border:2px solid {color};padding:15px;border-radius:10px;"><h3>📦 {k.split("_")[-1]}</h3><p>{v["deposito"]} | {v["marca"]}</p><h2 style="color:{color};">{txt_cajas(v["stock"])}</h2></div>', unsafe_allow_html=True)
     st.divider()
     if st.button("📦 VER LISTADO POR BODEGA", use_container_width=True):
         st.session_state.ver_menu_marcas = not st.session_state.get('ver_menu_marcas', False); st.rerun()
@@ -191,7 +190,6 @@ else:
     with col_btn_p: 
         btn_lupa_p = st.button("🔍", key="btn_lupa_pan", use_container_width=True)
     with col_clr_p:
-        # Lógica dinámica para el botón Limpiar en Panel
         if bus_e:
             if st.button("🧹", key="btn_clear_pan", use_container_width=True):
                 st.session_state.reset_pan += 1; st.rerun()
