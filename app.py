@@ -3,6 +3,7 @@ import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 import pandas as pd
 from datetime import datetime, timedelta
+import io
 
 # --- 1. CONFIGURACIÓN DE GOOGLE SHEETS ---
 NOMBRE_EXCEL = "DB_BODEGA_SISTEMA"
@@ -73,6 +74,17 @@ if 'data_loaded' not in st.session_state:
 
 inv, config, logs, sh = st.session_state.inv, st.session_state.config, st.session_state.logs, st.session_state.sh
 
+# --- FUNCION EXCEL ---
+def generar_excel(datos_inv):
+    df = pd.DataFrame([
+        {"BODEGA": v["deposito"], "MARCA": v["marca"], "CODIGO": k.split("_")[-1], "STOCK": v["stock"]}
+        for k, v in datos_inv.items()
+    ])
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+        df.to_excel(writer, index=False, sheet_name='Inventario')
+    return output.getvalue()
+
 # --- DIALOGOS ---
 @st.dialog("Confirmar")
 def confirmar_mov(k, v, cant, op):
@@ -131,6 +143,18 @@ if not st.session_state.get('modo_panel', False):
 else:
     # --- PANEL ---
     st.header("🛠️ Panel de Edición")
+    
+    # Botón Reporte
+    data_xls = generar_excel(inv)
+    st.download_button(
+        label="📊 DESCARGAR REPORTE MENSUAL",
+        data=data_xls,
+        file_name=f"Inventario_{datetime.now().strftime('%d_%m_%Y')}.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        use_container_width=True
+    )
+    
+    st.divider()
     dep_e = st.selectbox("Bodega:", config["depositos"], key="dep_e")
     tabs = st.tabs(config["marcas"])
     for i, m in enumerate(config["marcas"]):
