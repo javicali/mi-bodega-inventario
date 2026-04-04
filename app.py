@@ -197,20 +197,6 @@ elif not st.session_state.get('modo_panel', False):
 else:
     # --- PANEL DE TRABAJO (EDICIÓN) ---
     st.header("🛠️ Panel de Trabajo")
-    
-    # REPORTE EXCEL
-    with st.expander("📊 REPORTE DE CONTROL FÍSICO", expanded=False):
-        st.write("Genera un archivo Excel con todo el inventario para punteo manual.")
-        data_excel = generar_excel_reporte(inv)
-        st.download_button(
-            label="📥 DESCARGAR REPORTE EXCEL",
-            data=data_excel,
-            file_name=f"Reporte_Bodega_{datetime.now().strftime('%d_%m_%Y')}.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            use_container_width=True
-        )
-
-    st.divider()
     bus_ed = st.text_input("🎯 Buscar para editar:", key="bus_edit").upper().strip()
     if bus_ed:
         for k, v in {k: v for k, v in inv.items() if bus_ed in k}.items(): 
@@ -288,8 +274,21 @@ with st.sidebar:
                 if st.button("➕ Añadir"):
                     guardar_cambio_google(sh, "CONFIG", "ADD_CONFIG", [nb, 3]); recargar(); st.rerun()
 
+            # --- BOTONES FINALES DE ADMIN ---
             if st.button("📜 HISTORIAL", use_container_width=True): 
                 st.session_state.ver_historial = True; st.rerun()
+            
+            # --- NUEVA UBICACIÓN: REPORTE DE CONTROL FÍSICO ---
+            st.write("---")
+            st.markdown("**Reportes**")
+            data_excel = generar_excel_reporte(inv)
+            st.download_button(
+                label="📊 REPORTE DE CONTROL FÍSICO",
+                data=data_excel,
+                file_name=f"Reporte_Bodega_{datetime.now().strftime('%d_%m_%Y')}.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                use_container_width=True
+            )
 
         st.divider()
         if st.button("🔒 Salir", use_container_width=True): 
