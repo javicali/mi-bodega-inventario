@@ -165,13 +165,11 @@ elif not st.session_state.get('modo_panel', False):
         with col_ord:
             orden = st.selectbox("Ordenar por:", ["A-Z (Alfabético)", "Mayor Stock ⬆️", "Menor Stock ⬇️"])
 
-        # Filtrar ítems de la bodega elegida
         items_bodega = {k: v for k, v in inv.items() if v['deposito'] == d_v and v['stock'] > 0}
         lista_final = []
         for k, v in items_bodega.items():
             lista_final.append({'codigo': k.split('_')[-1], 'marca': v['marca'], 'stock': v['stock']})
 
-        # Lógica de Ordenamiento
         if orden == "A-Z (Alfabético)":
             lista_final = sorted(lista_final, key=lambda x: x['codigo'])
         elif orden == "Mayor Stock ⬆️":
@@ -179,9 +177,9 @@ elif not st.session_state.get('modo_panel', False):
         elif orden == "Menor Stock ⬇️":
             lista_final = sorted(lista_final, key=lambda x: x['stock'])
 
-        # Mostrar resultados
+        # Icono de caja 📦 añadido aquí
         for item in lista_final:
-            st.write(f"🔹 **{item['codigo']}** | {item['marca']} | **{txt_cajas(item['stock'])}**")
+            st.write(f"📦 **{item['codigo']}** | {item['marca']} | **{txt_cajas(item['stock'])}**")
 
 else:
     # --- PANEL DE TRABAJO ---
