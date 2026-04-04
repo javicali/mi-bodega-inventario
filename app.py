@@ -3,6 +3,7 @@ import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 import pandas as pd
 from datetime import datetime, timedelta
+import io
 
 # --- 1. CONFIGURACIÓN DE GOOGLE SHEETS ---
 NOMBRE_EXCEL = "DB_BODEGA_SISTEMA"
@@ -41,6 +42,24 @@ def cargar_datos_google():
         logs_data = ws_log.get_all_records()
         return inv, config, logs_data, sh
     except: return {}, def_config, [], None
+
+# --- FUNCIÓN PARA GENERAR REPORTE EXCEL ---
+def generar_excel_reporte(datos_inv):
+    reporte = []
+    for k, v in datos_inv.items():
+        reporte.append({
+            "BODEGA": v["deposito"],
+            "MARCA": v["marca"],
+            "CÓDIGO": k.split("_")[-1],
+            "STOCK ACTUAL": v["stock"],
+            "CONTEO FÍSICO": "",
+            "DIFERENCIA": ""
+        })
+    df = pd.DataFrame(reporte).sort_values(by=["BODEGA", "MARCA"])
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+        df.to_excel(writer, index=False, sheet_name='Inventario')
+    return output.getvalue()
 
 def guardar_cambio_google(sh, tab, accion, datos):
     try:
@@ -137,20 +156,12 @@ if st.session_state.get('ver_historial', False):
     st.dataframe(pd.DataFrame(logs).iloc[::-1], use_container_width=True)
 
 elif not st.session_state.get('modo_panel', False):
-    # --- BUSCADOR PRINCIPAL ---
+    # --- CONSULTA (VISTA PÚBLICA) ---
     st.subheader("🔍 Consulta de Stock")
-    
     col_input, col_lupa = st.columns([4, 1])
     with col_input:
-        # Usamos value para que sea controlable y NO key para evitar el error de la API
-        codigo_actual = st.text_input(
-            "Buscar código:", 
-            value=st.session_state.busqueda_interna,
-            placeholder="Ej: 1415 LIONESA", 
-            label_visibility="collapsed"
-        ).upper().strip()
+        codigo_actual = st.text_input("Buscar código:", value=st.session_state.busqueda_interna, placeholder="Ej: 1415 LIONESA", label_visibility="collapsed").upper().strip()
         st.session_state.busqueda_interna = codigo_actual
-
     with col_lupa:
         btn_lupa = st.button("🔍 OK", use_container_width=True)
 
@@ -166,22 +177,14 @@ elif not st.session_state.get('modo_panel', False):
                         <h3 style="margin:0;">📦 {k.split('_')[-1]}</h3>
                         <p style="margin:0;"><b>Bodega:</b> {v['deposito']} | <b>Marca:</b> {v['marca']}</p>
                         <h2 style="margin:0; color:{color};">Stock: {txt_cajas(v['stock'])}</h2>
-                    </div>
-                    """, unsafe_allow_html=True)
-                
-                if st.button("🗑️ Limpiar Búsqueda", use_container_width=True):
-                    st.session_state.busqueda_interna = ""
-                    st.rerun()
-            else:
-                st.error("❌ No se encontró ese código.")
-                if st.button("🔄 Intentar de nuevo"):
-                    st.session_state.busqueda_interna = ""
-                    st.rerun()
+                    </div>""", unsafe_allow_html=True)
+                if st.button("🗑️ Limpiar Búsqueda"):
+                    st.session_state.busqueda_interna = ""; st.rerun()
+            else: st.error("❌ No se encontró ese código.")
 
     st.divider()
     if st.button("📦 ABRIR BODEGA", use_container_width=True):
-        st.session_state.ver_menu_marcas = not st.session_state.get('ver_menu_marcas', False)
-        st.rerun()
+        st.session_state.ver_menu_marcas = not st.session_state.get('ver_menu_marcas', False); st.rerun()
 
     if st.session_state.get('ver_menu_marcas', False):
         d_v = st.selectbox("Selecciona la Bodega:", config["depositos"])
@@ -192,15 +195,28 @@ elif not st.session_state.get('modo_panel', False):
         else: st.warning("No hay artículos con stock.")
 
 else:
-    # --- PANEL DE EDICIÓN ---
+    # --- PANEL DE TRABAJO (EDICIÓN) ---
     st.header("🛠️ Panel de Trabajo")
+    
+    # REPORTE EXCEL
+    with st.expander("📊 REPORTE DE CONTROL FÍSICO", expanded=False):
+        st.write("Genera un archivo Excel con todo el inventario para punteo manual.")
+        data_excel = generar_excel_reporte(inv)
+        st.download_button(
+            label="📥 DESCARGAR REPORTE EXCEL",
+            data=data_excel,
+            file_name=f"Reporte_Bodega_{datetime.now().strftime('%d_%m_%Y')}.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            use_container_width=True
+        )
+
+    st.divider()
     bus_ed = st.text_input("🎯 Buscar para editar:", key="bus_edit").upper().strip()
     if bus_ed:
         for k, v in {k: v for k, v in inv.items() if bus_ed in k}.items(): 
             mostrar_tarjeta(k, v, "rap")
         if st.button("🗑️ Limpiar Filtro"):
-            st.session_state.bus_edit = ""
-            st.rerun()
+            st.session_state.bus_edit = ""; st.rerun()
 
     st.divider()
     dep_p = st.selectbox("Bodega:", config["depositos"], key="sel_dep_edit")
@@ -212,7 +228,7 @@ else:
             for k, v in sorted(it_p.items()):
                 mostrar_tarjeta(k, v, f"pan_{i}")
 
-# --- SIDEBAR ---
+# --- SIDEBAR (GESTIÓN) ---
 with st.sidebar:
     st.header("🔐 Acceso")
     if not st.session_state.get('edit_mode', False):
@@ -226,8 +242,7 @@ with st.sidebar:
     else:
         st.write(f"👤 **{st.session_state.usuario_actual}**")
         if st.button("⚙️ PANEL" if not st.session_state.get('modo_panel', False) else "🏠 INICIO", use_container_width=True):
-            st.session_state.modo_panel = not st.session_state.get('modo_panel', False)
-            st.rerun()
+            st.session_state.modo_panel = not st.session_state.get('modo_panel', False); st.rerun()
 
         with st.expander("🆕 Crear Nuevo Código"):
             nma = st.selectbox("Marca", config["marcas"], key="nw_m")
@@ -259,31 +274,23 @@ with st.sidebar:
             with st.expander("🏷️ Marcas"):
                 m_s = st.selectbox("Marca:", config["marcas"])
                 if st.button("🗑️ Borrar"):
-                    guardar_cambio_google(sh, "CONFIG", "DEL_CONFIG", [m_s, 4])
-                    recargar(); st.rerun()
+                    guardar_cambio_google(sh, "CONFIG", "DEL_CONFIG", [m_s, 4]); recargar(); st.rerun()
                 nm = st.text_input("Añadir Marca").upper().strip()
                 if st.button("➕"):
-                    guardar_cambio_google(sh, "CONFIG", "ADD_CONFIG", [nm, 4])
-                    recargar(); st.rerun()
+                    guardar_cambio_google(sh, "CONFIG", "ADD_CONFIG", [nm, 4]); recargar(); st.rerun()
 
             with st.expander("🏘️ Bodegas"):
                 b_s = st.selectbox("Bodega:", config["depositos"])
                 n_nb = st.text_input("Nuevo nombre:").upper().strip()
                 if st.button("📝 Renombrar"):
-                    guardar_cambio_google(sh, "CONFIG", "RENAME_CONFIG", [b_s, n_nb, 3])
-                    recargar(); st.rerun()
+                    guardar_cambio_google(sh, "CONFIG", "RENAME_CONFIG", [b_s, n_nb, 3]); recargar(); st.rerun()
                 nb = st.text_input("Añadir Bodega").upper().strip()
                 if st.button("➕ Añadir"):
-                    guardar_cambio_google(sh, "CONFIG", "ADD_CONFIG", [nb, 3])
-                    recargar(); st.rerun()
+                    guardar_cambio_google(sh, "CONFIG", "ADD_CONFIG", [nb, 3]); recargar(); st.rerun()
 
             if st.button("📜 HISTORIAL", use_container_width=True): 
-                st.session_state.ver_historial = True
-                st.rerun()
+                st.session_state.ver_historial = True; st.rerun()
 
         st.divider()
         if st.button("🔒 Salir", use_container_width=True): 
-            st.session_state.edit_mode = False
-            st.session_state.usuario_actual = None
-            st.session_state.modo_panel = False
-            st.rerun()
+            st.session_state.edit_mode = False; st.session_state.usuario_actual = None; st.session_state.modo_panel = False; st.rerun()
