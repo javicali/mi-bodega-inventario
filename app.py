@@ -119,8 +119,12 @@ def confirmar_mov(k, v, cant, op):
         nuevo = v['stock'] + cant if op == 'ENTRÓ' else v['stock'] - cant
         guardar_cambio_google(sh, "INVENTARIO", "UPDATE_STOCK", [k, nuevo])
         
-        # Formato: "X cajas de CODIGO a bodega BODEGA"
-        detalle_log = f"{txt_cajas(cant)} de {codigo_prod} a bodega {nombre_bodega}"
+        # Lógica de preposición solicitada:
+        # Si entra: "X cajas de CODIGO a BODEGA"
+        # Si sale: "X cajas de CODIGO de BODEGA"
+        preposicion = "a" if op == "ENTRÓ" else "de"
+        detalle_log = f"{txt_cajas(cant)} de {codigo_prod} {preposicion} {nombre_bodega}"
+        
         guardar_cambio_google(sh, "LOGS", "ADD_LOG", [st.session_state.usuario_actual, op, detalle_log])
         
         st.toast(f"✅ ¡{op} registrado!", icon='📦')
