@@ -93,6 +93,7 @@ def txt_cajas(n): return f"{n} caja" if n == 1 else f"{n} cajas"
 # --- 2. INICIALIZACIÓN ---
 st.set_page_config(page_title="Bodega Pro Ultra", layout="wide")
 
+# Contadores para resetear widgets de entrada
 if 'reset_pub' not in st.session_state: st.session_state.reset_pub = 0
 if 'reset_pan' not in st.session_state: st.session_state.reset_pan = 0
 
@@ -161,9 +162,13 @@ if st.session_state.get('ver_historial', False):
     st.dataframe(pd.DataFrame(logs).iloc[::-1], use_container_width=True)
 elif not st.session_state.get('modo_panel', False):
     st.subheader("🔍 Consulta")
-    col_input, col_lupa = st.columns([4, 1])
+    col_input, col_lupa, col_clear = st.columns([4, 1, 1])
     with col_input: bus_p = st.text_input("Código:", key=f"in_pub_{st.session_state.reset_pub}", label_visibility="collapsed").upper().strip()
     with col_lupa: btn_lupa = st.button("🔍 OK", key="btn_lupa_pub", use_container_width=True)
+    with col_clear: 
+        if st.button("🧹", key="btn_clear_pub", use_container_width=True):
+            st.session_state.reset_pub += 1; st.rerun()
+            
     if bus_p or btn_lupa:
         enc = {k: v for k, v in inv.items() if str(k.split('_')[-1]) == bus_p}
         for k, v in enc.items():
@@ -181,14 +186,20 @@ elif not st.session_state.get('modo_panel', False):
         for item in final: st.write(f"📦 **{item['codigo']}** | {item['marca']} | **{txt_cajas(item['stock'])}**")
 else:
     st.header("🛠️ Panel")
-    # --- BÚSQUEDA EN PANEL CON ICONO ---
-    col_in_p, col_btn_p = st.columns([4, 1])
+    # --- BÚSQUEDA EN PANEL CON ICONOS BUSCAR Y LIMPIAR ---
+    col_in_p, col_btn_p, col_clr_p = st.columns([4, 1, 1])
     with col_in_p: bus_e = st.text_input("🎯 Código:", key=f"in_pan_{st.session_state.reset_pan}", label_visibility="collapsed").upper().strip()
     with col_btn_p: btn_lupa_p = st.button("🔍", key="btn_lupa_pan", use_container_width=True)
+    with col_clr_p: 
+        if st.button("🧹", key="btn_clear_pan", use_container_width=True):
+            st.session_state.reset_pan += 1; st.rerun()
     
     if bus_e or btn_lupa_p:
         enc_ed = {k: v for k, v in inv.items() if str(k.split('_')[-1]) == bus_e}
-        for k, v in enc_ed.items(): mostrar_tarjeta(k, v, "rap")
+        if enc_ed:
+            for k, v in enc_ed.items(): mostrar_tarjeta(k, v, "rap")
+        else:
+            st.info("Código no encontrado")
     
     st.divider()
     dep_p = st.selectbox("Bodega:", config["depositos"])
