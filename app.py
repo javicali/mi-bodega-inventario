@@ -3,6 +3,7 @@ import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 import pandas as pd
 from datetime import datetime, timedelta
+import io
 
 # --- 1. CONFIGURACIÓN DE GOOGLE SHEETS ---
 NOMBRE_EXCEL = "DB_BODEGA_SISTEMA"
@@ -104,6 +105,17 @@ if 'data_loaded' not in st.session_state:
 
 inv, config, logs, sh = st.session_state.inv, st.session_state.config, st.session_state.logs, st.session_state.sh
 
+# --- FUNCION PARA EXCEL ---
+def generar_excel(datos_inv):
+    df = pd.DataFrame([
+        {"BODEGA": v["deposito"], "MARCA": v["marca"], "CODIGO": k.split("_")[-1], "STOCK ACTUAL": v["stock"]}
+        for k, v in datos_inv.items()
+    ])
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+        df.to_excel(writer, index=False, sheet_name='Inventario')
+    return output.getvalue()
+
 # --- DIALOGOS ---
 @st.dialog("Confirmar Movimiento")
 def confirmar_mov(k, v, cant, op):
@@ -142,7 +154,6 @@ elif not st.session_state.get('modo_panel', False):
     
     col_input, col_lupa = st.columns([4, 1])
     with col_input:
-        # Usamos value para que sea controlable y NO key para evitar el error de la API
         codigo_actual = st.text_input(
             "Buscar código:", 
             value=st.session_state.busqueda_interna,
@@ -194,6 +205,19 @@ elif not st.session_state.get('modo_panel', False):
 else:
     # --- PANEL DE EDICIÓN ---
     st.header("🛠️ Panel de Trabajo")
+    
+    # BOTÓN DE REPORTE MENSUAL (EXCEL)
+    data_excel = generar_excel(inv)
+    st.download_button(
+        label="📊 DESCARGAR REPORTE MENSUAL (EXCEL)",
+        data=data_excel,
+        file_name=f"Reporte_Inventario_{datetime.now().strftime('%Y_%m_%d')}.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        use_container_width=True
+    )
+    
+    st.divider()
+    
     bus_ed = st.text_input("🎯 Buscar para editar:", key="bus_edit").upper().strip()
     if bus_ed:
         for k, v in {k: v for k, v in inv.items() if bus_ed in k}.items(): 
