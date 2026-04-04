@@ -117,7 +117,6 @@ def mostrar_tarjeta(k, v, suf, permite_borrar=False):
         c2.write(f"📦 {v['stock']}")
         with c3:
             cant = st.number_input("n", min_value=1, key=f"n_{suf}_{k}", label_visibility="collapsed")
-            # Ajustamos columnas según si hay botón de borrar o no
             cols_btn = st.columns([1, 1, 1]) if permite_borrar else st.columns(2)
             if cols_btn[0].button("➕", key=f"btn_add_{suf}_{k}"): confirmar_mov(k, v, cant, "SUMAR")
             if cols_btn[1].button("➖", key=f"btn_sub_{suf}_{k}", disabled=v['stock']<cant): confirmar_mov(k, v, cant, "RESTAR")
@@ -172,7 +171,7 @@ else:
                 with st.expander("🚫 ARTÍCULOS SIN STOCK"):
                     for k, v in sorted(sin_s_p.items()): mostrar_tarjeta(k, v, f"sin_{i}", permite_borrar=True)
 
-# --- SIDEBAR (USUARIOS, BODEGAS, MARCAS) ---
+# --- SIDEBAR (CON PERMISOS ACTUALIZADOS) ---
 with st.sidebar:
     st.header("🔐 Acceso")
     if not st.session_state.edit_mode:
@@ -184,10 +183,13 @@ with st.sidebar:
                 st.rerun()
     else:
         st.write(f"👤 **{st.session_state.usuario_actual}**")
+        
+        # TODOS LOS LOGUEADOS pueden ver el botón de PANEL/INICIO
         if st.button("⚙️ PANEL" if not st.session_state.modo_panel else "🏠 INICIO", key="btn_toggle_panel"):
             st.session_state.modo_panel = not st.session_state.modo_panel
             st.rerun()
 
+        # SECCIÓN SOLO PARA EL ADMIN PRINCIPAL
         if st.session_state.usuario_actual.upper() == "ADMIN":
             if st.button("📜 HISTORIAL", key="btn_hist"): st.session_state.ver_historial=True; st.rerun()
             
@@ -226,6 +228,7 @@ with st.sidebar:
                 if st.button("➕ Añadir Marca", key="btn_add_m"):
                     if nm: guardar_cambio_google(sh, "CONFIG", "ADD_CONFIG", [nm, 4]); st.session_state.clear(); st.rerun()
 
+        # ESTO LO VEN TODOS LOS LOGUEADOS (ADMIN Y SECUNDARIOS)
         with st.expander("🆕 Crear Nuevo Código"):
             nma = st.selectbox("Marca", config["marcas"], key="new_item_m")
             nco = st.text_input("Código", key="new_item_c").upper().strip()
