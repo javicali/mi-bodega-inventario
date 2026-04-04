@@ -1,3 +1,10 @@
+Para lograr que el historial sea más descriptivo y siga el formato que pides (**"X cajas de [Código] a bodega [Nombre]"**), he modificado la función `confirmar_mov`. 
+
+Ahora, al momento de guardar el log, el sistema descompone la clave interna (que es `BODEGA_CODIGO`) para redactar la frase exactamente como la necesitas.
+
+Aquí tienes el código completo actualizado:
+
+```python
 import streamlit as st
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
@@ -108,12 +115,22 @@ inv, config, logs, sh = st.session_state.inv, st.session_state.config, st.sessio
 # --- DIALOGOS ---
 @st.dialog("Confirmar Movimiento")
 def confirmar_mov(k, v, cant, op):
-    st.warning(f"¿Confirmas que {op} {txt_cajas(cant)} de {k.split('_')[-1]}?")
+    # Separamos bodega y código para el historial
+    partes = k.split("_")
+    nombre_bodega = partes[0]
+    codigo_prod = partes[-1]
+    
+    st.warning(f"¿Confirmas que {op} {txt_cajas(cant)} de {codigo_prod}?")
     c1, c2 = st.columns(2)
+    
     if c1.button("SÍ, GUARDAR", use_container_width=True):
         nuevo = v['stock'] + cant if op == 'ENTRÓ' else v['stock'] - cant
         guardar_cambio_google(sh, "INVENTARIO", "UPDATE_STOCK", [k, nuevo])
-        guardar_cambio_google(sh, "LOGS", "ADD_LOG", [st.session_state.usuario_actual, op, f"{txt_cajas(cant)} de {k}"])
+        
+        # Formato solicitado: "2 cajas de codigo a bodega ARCANI"
+        detalle_log = f"{txt_cajas(cant)} de {codigo_prod} a bodega {nombre_bodega}"
+        guardar_cambio_google(sh, "LOGS", "ADD_LOG", [st.session_state.usuario_actual, op, detalle_log])
+        
         st.toast(f"✅ ¡{op} registrado!", icon='📦')
         recargar(); st.rerun()
     if c2.button("CANCELAR", use_container_width=True): st.rerun()
@@ -124,7 +141,7 @@ def confirmar_eliminar(k):
     c1, c2 = st.columns(2)
     if c1.button("ELIMINAR", use_container_width=True):
         guardar_cambio_google(sh, "INVENTARIO", "BORRAR_ITEM", [k])
-        guardar_cambio_google(sh, "LOGS", "ADD_LOG", [st.session_state.usuario_actual, "ELIMINÓ", f"Código {k}"])
+        guardar_cambio_google(sh, "LOGS", "ADD_LOG", [st.session_state.usuario_actual, "ELIMINÓ", f"Código {k.split('_')[-1]} de {k.split('_')[0]}"])
         st.toast(f"🗑️ Código eliminado", icon='🗑️')
         recargar(); st.rerun()
     if c2.button("CANCELAR", use_container_width=True): st.rerun()
@@ -148,6 +165,7 @@ st.title("🏢 Bodega Central")
 if st.session_state.get('ver_historial', False):
     st.header("📜 Historial")
     if st.button("⬅️ Volver"): st.session_state.ver_historial = False; st.rerun()
+    # Mostramos el dataframe con el nuevo formato de detalle
     st.dataframe(pd.DataFrame(logs).iloc[::-1], use_container_width=True)
 elif not st.session_state.get('modo_panel', False):
     st.subheader("🔍 Consulta")
@@ -255,3 +273,4 @@ with st.sidebar:
 
         if st.button("🔒 Salir", use_container_width=True): 
             st.session_state.edit_mode = False; st.rerun()
+```
