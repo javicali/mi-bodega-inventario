@@ -170,7 +170,6 @@ elif not st.session_state.get('modo_panel', False):
         enc = {k: v for k, v in inv.items() if str(k.split('_')[-1]) == bus_p}
         for k, v in enc.items():
             color = "green" if v['stock'] > 0 else "red"
-            # Se eliminó la palabra "Stock:" para mostrar solo el número de cajas
             st.markdown(f'<div style="border:2px solid {color};padding:15px;border-radius:10px;"><h3>📦 {k.split("_")[-1]}</h3><p>{v["deposito"]} | {v["marca"]}</p><h2 style="color:{color};">{txt_cajas(v["stock"])}</h2></div>', unsafe_allow_html=True)
     st.divider()
     if st.button("📦 VER LISTADO POR BODEGA", use_container_width=True):
@@ -183,7 +182,14 @@ elif not st.session_state.get('modo_panel', False):
         elif orden == "Mayor Stock": final.sort(key=lambda x: x['stock'], reverse=True)
         for item in final: st.write(f"📦 **{item['codigo']}** | {item['marca']} | **{txt_cajas(item['stock'])}**")
 else:
-    st.header("🛠️ Panel")
+    # --- ENTRADA/SALIDA CON ICONO VOLVER ---
+    c1, c2 = st.columns([1, 10])
+    with c1:
+        if st.button("🏠", help="Volver a Inicio"):
+            st.session_state.modo_panel = False; st.rerun()
+    with c2:
+        st.header("Entrada / Salida 📦")
+
     col_in_p, col_btn_p, col_clr_p = st.columns([4, 1, 1])
     with col_in_p: 
         bus_e = st.text_input("🎯 Código:", key=f"in_pan_{st.session_state.reset_pan}", label_visibility="collapsed").upper().strip()
@@ -222,7 +228,8 @@ with st.sidebar:
             else: st.error("Error")
     else:
         st.write(f"👤 **{st.session_state.usuario_actual}**")
-        if st.button("⚙️ PANEL" if not st.session_state.get('modo_panel', False) else "🏠 INICIO", use_container_width=True):
+        # Botón actualizado en Sidebar
+        if st.button("📦 ENTRADA/SALIDA" if not st.session_state.get('modo_panel', False) else "🏠 INICIO", use_container_width=True):
             st.session_state.modo_panel = not st.session_state.get('modo_panel', False); st.rerun()
         
         with st.expander("🆕 Nuevo Código"):
