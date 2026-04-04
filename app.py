@@ -14,14 +14,13 @@ def conectar_google():
     try:
         if "gcp_service_account" in st.secrets:
             creds_dict = dict(st.secrets["gcp_service_account"])
-            # El .replace garantiza que el \n se convierta en un salto de línea real
+            # Esto convierte los \n del texto en saltos de línea reales
             creds_dict["private_key"] = creds_dict["private_key"].replace("\\n", "\n")
             creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, SCOPE)
         else:
             creds = ServiceAccountCredentials.from_json_keyfile_name('creds.json', SCOPE)
             
-        client = gspread.authorize(creds)
-        return client.open(NOMBRE_EXCEL)
+        return gspread.authorize(creds).open(NOMBRE_EXCEL)
     except Exception as e:
         st.error(f"❌ Error de conexión: {e}")
         return None
