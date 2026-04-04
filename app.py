@@ -77,7 +77,6 @@ def guardar_cambio_google(sh, tab, accion, datos):
 # --- 2. INICIALIZACIÓN ---
 st.set_page_config(page_title="Bodega Pro Ultra", layout="wide")
 
-# Función para recargar datos sin cerrar sesión
 def recargar():
     st.session_state.inv, st.session_state.config, st.session_state.logs, st.session_state.sh = cargar_datos_google()
 
@@ -92,6 +91,22 @@ if 'modo_panel' not in st.session_state: st.session_state.modo_panel = False
 if 'ver_historial' not in st.session_state: st.session_state.ver_historial = False
 
 # --- DIALOGOS ---
+@st.dialog("Detalle del Artículo")
+def mostrar_detalle_dialogo(k, v):
+    st.write(f"### 📦 {k.split('_')[-1]}")
+    st.divider()
+    c1, c2 = st.columns(2)
+    c1.metric("Stock Actual", f"{v['stock']} cajas")
+    c1.write(f"**Marca:** {v['marca']}")
+    c1.write(f"**Bodega:** {v['deposito']}")
+    
+    if v['stock'] == 0:
+        st.error("🚨 ESTE ARTÍCULO NO TIENE STOCK")
+    else:
+        st.success("✅ Artículo disponible")
+    
+    if st.button("Cerrar"): st.rerun()
+
 @st.dialog("Confirmar Movimiento")
 def confirmar_mov(k, v, cant, op):
     st.warning(f"¿Confirmas {op} {cant} cajas a {k.split('_')[-1]}?")
@@ -100,7 +115,7 @@ def confirmar_mov(k, v, cant, op):
         nuevo = v['stock'] + cant if op == 'SUMAR' else v['stock'] - cant
         guardar_cambio_google(sh, "INVENTARIO", "UPDATE_STOCK", [k, nuevo])
         guardar_cambio_google(sh, "LOGS", "ADD_LOG", [st.session_state.usuario_actual, op, f"{cant} cajas de {k}"])
-        recargar() # <--- Recargamos solo datos
+        recargar()
         st.rerun()
     if c2.button("CANCELAR", use_container_width=True): st.rerun()
 
@@ -136,27 +151,34 @@ if st.session_state.ver_historial:
     st.header("📜 Historial")
     if st.button("⬅️ Volver"): st.session_state.ver_historial = False; st.rerun()
     st.dataframe(pd.DataFrame(logs).iloc[::-1], use_container_width=True)
+
 elif not st.session_state.modo_panel:
-    st.subheader("🔍 Buscador")
-    busq = st.text_input("Código", placeholder="Buscar...", key="bus_main").upper().strip()
-    if busq:
-        for k, v in {k: v for k, v in inv.items() if busq in k}.items():
-            if v['stock'] > 0: st.success(f"✅ {v['deposito']} | {v['marca']} | {k.split('_')[-1]} | STOCK: {v['stock']}")
-            else: st.error(f"🚨 SIN STOCK: {v['deposito']} | {v['marca']} | {k.split('_')[-1]}")
+    # --- VISTA PRINCIPAL (LIMPIA) ---
+    st.subheader("🔍 Consulta Rápida")
+    busq = st.text_input("Buscar código...", key="bus_main").upper().strip()
+    
     st.divider()
     d_v = st.selectbox("Bodega:", config["depositos"], key="sel_dep_main")
     mlist = config["marcas"] if config["marcas"] else ["GENERAL"]
     tabs_m = st.tabs(mlist)
+    
     for i, m in enumerate(mlist):
         with tabs_m[i]:
-            it_t = {k: v for k, v in inv.items() if v['marca']==m and v['deposito']==d_v}
-            c_s = {k: v for k, v in it_t.items() if v['stock'] > 0}
-            s_s = {k: v for k, v in it_t.items() if v['stock'] == 0}
-            for kid, info in sorted(c_s.items()): st.write(f"**{kid.split('_')[-1]}**: {info['stock']} cajas")
-            if s_s:
-                with st.expander("🚫 ARTÍCULOS SIN STOCK"):
-                    for kid, info in sorted(s_s.items()): st.write(f"❌ {kid.split('_')[-1]}")
+            items = {k: v for k, v in inv.items() if v['marca']==m and v['deposito']==d_v}
+            if busq:
+                items = {k: v for k, v in items.items() if busq in k}
+            
+            for kid, info in sorted(items.items()):
+                c_nom, c_ver = st.columns([4, 1])
+                # Mostrar solo el nombre
+                prefix = "✅" if info['stock'] > 0 else "❌"
+                c_nom.write(f"{prefix} **{kid.split('_')[-1]}**")
+                # Botón para ver detalle
+                if c_ver.button("👁️ Ver", key=f"ver_{kid}"):
+                    mostrar_detalle_dialogo(kid, info)
+
 else:
+    # --- PANEL DE EDICIÓN (CON TARJETAS) ---
     st.header("🛠️ Panel Edición")
     bus_ed = st.text_input("🎯 Buscar código rápido:", key="bus_edit").upper().strip()
     if bus_ed:
@@ -189,12 +211,10 @@ with st.sidebar:
     else:
         st.write(f"👤 **{st.session_state.usuario_actual}**")
         
-        # 1. PANEL
         if st.button("⚙️ PANEL" if not st.session_state.modo_panel else "🏠 INICIO", key="btn_toggle_panel", use_container_width=True):
             st.session_state.modo_panel = not st.session_state.modo_panel
             st.rerun()
 
-        # 2. CREAR NUEVO CODIGO
         with st.expander("🆕 Crear Nuevo Código"):
             nma = st.selectbox("Marca", config["marcas"], key="new_item_m")
             nco = st.text_input("Código", key="new_item_c").upper().strip()
@@ -205,7 +225,6 @@ with st.sidebar:
                     recargar()
                     st.rerun()
 
-        # SOLO ADMIN
         if st.session_state.usuario_actual.upper() == "ADMIN":
             with st.expander("👤 Gestión de Usuarios"):
                 nu_n = st.text_input("Nombre Nuevo").upper().strip()
