@@ -108,7 +108,7 @@ def mostrar_tarjeta(k, v, suf, permite_borrar=False):
     with st.container(border=True):
         c1, c2, c3 = st.columns([2, 1, 3])
         c1.markdown(f"**{k.split('_')[-1]}**\n<small>{v['marca']} | {v['deposito']}</small>", unsafe_allow_html=True)
-        c2.write(f"📦 {v['stock']}")
+        c2.write(f"📦 {v['stock']} cajas")
         with c3:
             cant = st.number_input("n", min_value=1, key=f"n_{suf}_{k}", label_visibility="collapsed")
             cols_btn = st.columns(2)
@@ -139,7 +139,7 @@ elif not st.session_state.modo_panel:
                     <div style="border: 2px solid {color}; padding: 15px; border-radius: 10px; margin-bottom: 10px;">
                         <h3 style="margin:0;">📦 {k.split('_')[-1]}</h3>
                         <p style="margin:0;"><b>Ubicación:</b> {v['deposito']} | <b>Marca:</b> {v['marca']}</p>
-                        <h2 style="margin:0; color:{color};">Stock: {v['stock']}</h2>
+                        <h2 style="margin:0; color:{color};">Stock: {v['stock']} cajas</h2>
                     </div>
                     """, unsafe_allow_html=True)
             else:
@@ -147,7 +147,7 @@ elif not st.session_state.modo_panel:
 
     st.divider()
 
-    # --- ABRIR BODEGA (MOSTRAR TODO EL STOCK) ---
+    # --- ABRIR BODEGA ---
     if st.button("📦 ABRIR BODEGA", use_container_width=True):
         st.session_state.ver_menu_marcas = not st.session_state.get('ver_menu_marcas', False)
         st.rerun()
@@ -157,13 +157,11 @@ elif not st.session_state.modo_panel:
         
         st.info(f"📋 Artículos con Stock en: **{d_v}**")
         
-        # Filtramos por bodega y que tengan stock > 0, de todas las marcas
         items_bodega = {k: v for k, v in inv.items() if v['deposito'] == d_v and v['stock'] > 0}
         
         if items_bodega:
-            # Ordenamos por marca para que sea fácil leer
             for kid, info in sorted(items_bodega.items(), key=lambda x: x[1]['marca']):
-                st.write(f"🔹 **{kid.split('_')[-1]}** | Marca: {info['marca']} | **Stock: {info['stock']}**")
+                st.write(f"🔹 **{kid.split('_')[-1]}** | Marca: {info['marca']} | **Stock: {info['stock']} cajas**")
         else:
             st.warning("No hay artículos con stock en esta bodega.")
 
