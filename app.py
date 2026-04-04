@@ -3,7 +3,6 @@ import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 import pandas as pd
 from datetime import datetime, timedelta
-import io
 
 # --- 1. CONFIGURACIÓN DE GOOGLE SHEETS ---
 NOMBRE_EXCEL = "DB_BODEGA_SISTEMA"
@@ -74,40 +73,6 @@ if 'data_loaded' not in st.session_state:
 
 inv, config, logs, sh = st.session_state.inv, st.session_state.config, st.session_state.logs, st.session_state.sh
 
-# --- FUNCION EXCEL MEJORADA ---
-def generar_excel(datos_inv):
-    # Crear lista para el DataFrame
-    data = []
-    for k, v in datos_inv.items():
-        data.append({
-            "BODEGA": v["deposito"],
-            "MARCA": v["marca"],
-            "CÓDIGO": k.split("_")[-1],
-            "STOCK SISTEMA": v["stock"],
-            "CONTEO FÍSICO": "",  # Espacio para llenar a mano
-            "DIFERENCIA": ""      # Espacio para cálculos
-        })
-    
-    df = pd.DataFrame(data)
-    # Ordenar por Bodega y luego por Código
-    df = df.sort_values(by=["BODEGA", "CÓDIGO"])
-    
-    output = io.BytesIO()
-    # Usar xlsxwriter para formato
-    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-        df.to_excel(writer, index=False, sheet_name='Inventario_Mensual')
-        
-        # Ajuste básico de diseño
-        workbook = writer.book
-        worksheet = writer.sheets['Inventario_Mensual']
-        header_format = workbook.add_format({'bold': True, 'bg_color': '#D7E4BC', 'border': 1})
-        
-        for col_num, value in enumerate(df.columns.values):
-            worksheet.write(0, col_num, value, header_format)
-            worksheet.set_column(col_num, col_num, 15)
-            
-    return output.getvalue()
-
 # --- DIALOGOS ---
 @st.dialog("Confirmar")
 def confirmar_mov(k, v, cant, op):
@@ -166,31 +131,12 @@ if not st.session_state.get('modo_panel', False):
 else:
     # --- PANEL ---
     st.header("🛠️ Panel de Edición")
-    
-    # SECCIÓN DE REPORTES
-    with st.expander("📊 Reportes y Exportación", expanded=True):
-        col_exp1, col_exp2 = st.columns(2)
-        with col_exp1:
-            st.write("Genera un archivo Excel con el stock actual y espacios para control físico.")
-            data_xls = generar_excel(inv)
-            st.download_button(
-                label="📥 DESCARGAR REPORTE MENSUAL (.xlsx)",
-                data=data_xls,
-                file_name=f"Reporte_Bodega_{datetime.now().strftime('%m_%Y')}.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                use_container_width=True
-            )
-    
-    st.divider()
-    dep_e = st.selectbox("Filtrar por Bodega:", config["depositos"], key="dep_e")
+    dep_e = st.selectbox("Bodega:", config["depositos"], key="dep_e")
     tabs = st.tabs(config["marcas"])
     for i, m in enumerate(config["marcas"]):
         with tabs[i]:
             items = {k: v for k, v in inv.items() if v['marca']==m and v['deposito']==dep_e}
-            if not items:
-                st.info(f"No hay items de {m} en {dep_e}")
-            for k, v in sorted(items.items()): 
-                mostrar_tarjeta(k, v, f"t_{i}")
+            for k, v in sorted(items.items()): mostrar_tarjeta(k, v, f"t_{i}")
 
 # --- SIDEBAR ---
 with st.sidebar:
@@ -202,10 +148,9 @@ with st.sidebar:
                 st.session_state.edit_mode, st.session_state.usuario_actual = True, u
                 st.rerun()
     else:
-        st.write(f"👤 **Usuario:** {st.session_state.usuario_actual}")
+        st.write(f"👤 {st.session_state.usuario_actual}")
         if st.button("⚙️ PANEL / 🏠 INICIO", use_container_width=True):
             st.session_state.modo_panel = not st.session_state.get('modo_panel', False); st.rerun()
         
-        st.divider()
         if st.button("🔒 Salir", use_container_width=True):
             st.session_state.edit_mode = False; st.session_state.modo_panel = False; st.rerun()
