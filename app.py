@@ -124,7 +124,7 @@ if st.session_state.ver_historial:
     st.dataframe(pd.DataFrame(logs).iloc[::-1], use_container_width=True)
 
 elif not st.session_state.modo_panel:
-    # --- BUSCADOR CON BOTÓN OK ---
+    # --- BUSCADOR ---
     st.subheader("🔍 Buscar Producto")
     c_input, c_ok = st.columns([4, 1])
     codigo_buscado = c_input.text_input("Ingresa el código:", placeholder="Escribe aquí...", label_visibility="collapsed").upper().strip()
@@ -144,30 +144,28 @@ elif not st.session_state.modo_panel:
                     """, unsafe_allow_html=True)
             else:
                 st.error("❌ No se encontró ese código.")
-        else:
-            st.warning("Escribe algo para buscar.")
 
     st.divider()
 
-    # --- BOTÓN PARA EL MENÚ DE MARCAS (MODIFICADO AQUÍ) ---
+    # --- ABRIR BODEGA (MOSTRAR TODO EL STOCK) ---
     if st.button("📦 ABRIR BODEGA", use_container_width=True):
         st.session_state.ver_menu_marcas = not st.session_state.get('ver_menu_marcas', False)
         st.rerun()
 
     if st.session_state.get('ver_menu_marcas', False):
-        st.info("📂 Filtrar por ubicación y marca")
-        c_m1, c_m2 = st.columns(2)
-        d_v = c_m1.selectbox("Bodega:", config["depositos"])
-        mlist = config["marcas"] if config["marcas"] else ["GENERAL"]
-        m_v = c_m2.selectbox("Marca:", mlist)
+        d_v = st.selectbox("Selecciona la Bodega:", config["depositos"])
         
-        items_f = {k: v for k, v in inv.items() if v['marca']==m_v and v['deposito']==d_v}
-        if items_f:
-            for kid, info in sorted(items_f.items()):
-                prefix = "✅" if info['stock'] > 0 else "❌"
-                st.write(f"{prefix} **{kid.split('_')[-1]}**: {info['stock']} cajas")
+        st.info(f"📋 Artículos con Stock en: **{d_v}**")
+        
+        # Filtramos por bodega y que tengan stock > 0, de todas las marcas
+        items_bodega = {k: v for k, v in inv.items() if v['deposito'] == d_v and v['stock'] > 0}
+        
+        if items_bodega:
+            # Ordenamos por marca para que sea fácil leer
+            for kid, info in sorted(items_bodega.items(), key=lambda x: x[1]['marca']):
+                st.write(f"🔹 **{kid.split('_')[-1]}** | Marca: {info['marca']} | **Stock: {info['stock']}**")
         else:
-            st.write("No hay artículos en esta selección.")
+            st.warning("No hay artículos con stock en esta bodega.")
 
 else:
     # --- PANEL DE EDICIÓN ---
