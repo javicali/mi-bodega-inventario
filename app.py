@@ -130,22 +130,19 @@ def confirmar_eliminar(k):
 
 def mostrar_tarjeta(k, v, suf):
     with st.container(border=True):
-        c1, c2, c3 = st.columns([2, 1, 3])
+        c1, c2, c3 = st.columns([2, 1, 3.5]) 
         c1.markdown(f"**{k.split('_')[-1]}**\n<small>{v['marca']} | {v['deposito']}</small>", unsafe_allow_html=True)
-        c2.write(f"📦 {txt_cajas(v['stock'])}")
+        c2.write(f"📦 {v['stock']}")
         with c3:
             cant = st.number_input("n", min_value=1, key=f"n_{suf}_{k}", label_visibility="collapsed")
-            # Ajuste de columnas para botones: ENTRÓ, SALIÓ y ELIMINAR (si aplica)
-            cols_btn = st.columns([1, 1, 0.4]) 
-            cols_btn[0].button("ENTRÓ", key=f"btn_add_{suf}_{k}", use_container_width=True)
-            if cols_btn[0].button("ENTRÓ", key=f"btn_add_{suf}_{k}_real", label_visibility="collapsed"): 
+            cols_btn = st.columns([1, 1, 0.5]) 
+            
+            if cols_btn[0].button("ENTRÓ", key=f"btn_add_{suf}_{k}", use_container_width=True):
                 confirmar_mov(k, v, cant, "ENTRÓ")
             
-            cols_btn[1].button("SALIÓ", key=f"btn_sub_{suf}_{k}", disabled=v['stock']<cant, use_container_width=True)
-            if cols_btn[1].button("SALIÓ", key=f"btn_sub_{suf}_{k}_real", label_visibility="collapsed", disabled=v['stock']<cant): 
+            if cols_btn[1].button("SALIÓ", key=f"btn_sub_{suf}_{k}", disabled=v['stock']<cant, use_container_width=True):
                 confirmar_mov(k, v, cant, "SALIÓ")
             
-            # Icono de eliminar a la derecha de "SALIÓ" solo si stock es 0
             if v['stock'] == 0:
                 if cols_btn[2].button("🗑️", key=f"del_{suf}_{k}", help="Eliminar código"):
                     confirmar_eliminar(k)
