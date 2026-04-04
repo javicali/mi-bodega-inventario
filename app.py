@@ -47,31 +47,48 @@ def guardar_cambio_google(sh, tab, accion, datos):
         ws = sh.worksheet(tab)
         if accion == "UPDATE_STOCK":
             celda = ws.find(datos[0].split("_")[-1])
-            if celda: ws.update_cell(celda.row, 4, datos[1])
+            if celda: 
+                ws.update_cell(celda.row, 4, datos[1])
+                st.toast(f"✅ Stock actualizado: {datos[0].split('_')[-1]}", icon="📦")
         elif accion == "ADD_LOG":
             hora = (datetime.now() - timedelta(hours=4)).strftime("%d/%m/%Y %H:%M")
             ws.append_row([hora] + datos)
-        elif accion == "NUEVO_ITEM": ws.append_row(datos)
+        elif accion == "NUEVO_ITEM": 
+            ws.append_row(datos)
+            st.toast(f"✅ Item '{datos[2]}' creado con éxito", icon="🆕")
         elif accion == "DELETE_ITEM":
             celda = ws.find(datos[0].split("_")[-1])
-            if celda: ws.delete_rows(celda.row)
+            if celda: 
+                ws.delete_rows(celda.row)
+                st.toast("🗑️ Item eliminado", icon="🔥")
         elif accion == "ADD_CONFIG":
             col_vals = ws.col_values(datos[1])
             ws.update_cell(len(col_vals) + 1, datos[1], datos[0])
+            st.toast(f"✅ Añadido: {datos[0]}", icon="➕")
         elif accion == "DEL_CONFIG":
             celda = ws.find(datos[0])
-            if celda and celda.col == datos[1]: ws.update_cell(celda.row, datos[1], "")
+            if celda and celda.col == datos[1]: 
+                ws.update_cell(celda.row, datos[1], "")
+                st.toast(f"🗑️ Eliminado: {datos[0]}", icon="❌")
         elif accion == "RENAME_CONFIG":
             celda = ws.find(datos[0])
-            if celda and celda.col == datos[2]: ws.update_cell(celda.row, datos[2], datos[1])
+            if celda and celda.col == datos[2]: 
+                ws.update_cell(celda.row, datos[2], datos[1])
+                st.toast(f"📝 Renombrado a: {datos[1]}", icon="✏️")
         elif accion == "MANAGE_USER":
-            if datos[2] == "CREAR": ws.append_row([datos[0], datos[1]], value_input_option='RAW')
+            if datos[2] == "CREAR": 
+                ws.append_row([datos[0], datos[1]], value_input_option='RAW')
+                st.toast(f"👤 Usuario {datos[0]} creado", icon="🚀")
             elif datos[2] == "ELIMINAR":
                 celda = ws.find(datos[0])
-                if celda and celda.col == 1: ws.delete_rows(celda.row)
+                if celda and celda.col == 1: 
+                    ws.delete_rows(celda.row)
+                    st.toast(f"👤 Usuario {datos[0]} eliminado", icon="🗑️")
             elif datos[2] == "MODIFICAR":
                 celda = ws.find(datos[0])
-                if celda and celda.col == 1: ws.update_cell(celda.row, 2, datos[1])
+                if celda and celda.col == 1: 
+                    ws.update_cell(celda.row, 2, datos[1])
+                    st.toast(f"🔐 Clave de {datos[0]} modificada", icon="🔄")
     except: st.error("⚠️ Error de comunicación")
 
 # --- FUNCION AUXILIAR PARA EL PLURAL ---
@@ -193,6 +210,7 @@ with st.sidebar:
         if st.button("🔓 Entrar"):
             if config["usuarios"].get(u) == p:
                 st.session_state.edit_mode, st.session_state.usuario_actual = True, u
+                st.toast(f"Bienvenido, {u}", icon="👋")
                 st.rerun()
     else:
         st.write(f"👤 **{st.session_state.usuario_actual}**")
