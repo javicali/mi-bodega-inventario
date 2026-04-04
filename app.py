@@ -119,9 +119,6 @@ def confirmar_mov(k, v, cant, op):
         nuevo = v['stock'] + cant if op == 'ENTRÓ' else v['stock'] - cant
         guardar_cambio_google(sh, "INVENTARIO", "UPDATE_STOCK", [k, nuevo])
         
-        # Lógica de preposición solicitada:
-        # Si entra: "X cajas de CODIGO a BODEGA"
-        # Si sale: "X cajas de CODIGO de BODEGA"
         preposicion = "a" if op == "ENTRÓ" else "de"
         detalle_log = f"{txt_cajas(cant)} de {codigo_prod} {preposicion} {nombre_bodega}"
         
@@ -166,7 +163,7 @@ elif not st.session_state.get('modo_panel', False):
     st.subheader("🔍 Consulta")
     col_input, col_lupa = st.columns([4, 1])
     with col_input: bus_p = st.text_input("Código:", key=f"in_pub_{st.session_state.reset_pub}", label_visibility="collapsed").upper().strip()
-    with col_lupa: btn_lupa = st.button("🔍 OK", use_container_width=True)
+    with col_lupa: btn_lupa = st.button("🔍 OK", key="btn_lupa_pub", use_container_width=True)
     if bus_p or btn_lupa:
         enc = {k: v for k, v in inv.items() if str(k.split('_')[-1]) == bus_p}
         for k, v in enc.items():
@@ -184,10 +181,15 @@ elif not st.session_state.get('modo_panel', False):
         for item in final: st.write(f"📦 **{item['codigo']}** | {item['marca']} | **{txt_cajas(item['stock'])}**")
 else:
     st.header("🛠️ Panel")
-    bus_e = st.text_input("🎯 Código:", key=f"in_pan_{st.session_state.reset_pan}").upper().strip()
-    if bus_e:
+    # --- BÚSQUEDA EN PANEL CON ICONO ---
+    col_in_p, col_btn_p = st.columns([4, 1])
+    with col_in_p: bus_e = st.text_input("🎯 Código:", key=f"in_pan_{st.session_state.reset_pan}", label_visibility="collapsed").upper().strip()
+    with col_btn_p: btn_lupa_p = st.button("🔍", key="btn_lupa_pan", use_container_width=True)
+    
+    if bus_e or btn_lupa_p:
         enc_ed = {k: v for k, v in inv.items() if str(k.split('_')[-1]) == bus_e}
         for k, v in enc_ed.items(): mostrar_tarjeta(k, v, "rap")
+    
     st.divider()
     dep_p = st.selectbox("Bodega:", config["depositos"])
     tabs_e = st.tabs(config["marcas"] if config["marcas"] else ["GENERAL"])
