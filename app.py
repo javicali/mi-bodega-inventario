@@ -46,7 +46,8 @@ def cargar_datos_google():
     except Exception as e:
         st.error(f"Error procesando los datos del Excel: {e}")
         # Retornamos valores vacíos para evitar la pantalla blanca
-        return {}, {"usuarios": {"ADMIN": "123"}, "depositos": [], "marcas": []}, [], None        
+        return {}, {"usuarios": {"ADMIN": "123"}, "depositos": [], "marcas": []}, [], None      
+        
 # --- FUNCIONES DE BASE DE DATOS (NUEVAS PARA GOOGLE) ---
 def cargar_datos_google():
     sh = conectar_google()
