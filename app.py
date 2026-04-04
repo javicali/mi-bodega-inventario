@@ -52,6 +52,9 @@ def guardar_cambio_google(sh, tab, accion, datos):
             hora = (datetime.now() - timedelta(hours=4)).strftime("%d/%m/%Y %H:%M")
             ws.append_row([hora] + datos)
         elif accion == "NUEVO_ITEM": ws.append_row(datos)
+        elif accion == "DELETE_ITEM":
+            celda = ws.find(datos[0].split("_")[-1])
+            if celda: ws.delete_rows(celda.row)
         elif accion == "ADD_CONFIG":
             col_vals = ws.col_values(datos[1])
             ws.update_cell(len(col_vals) + 1, datos[1], datos[0])
@@ -82,7 +85,7 @@ if 'edit_mode' not in st.session_state: st.session_state.edit_mode = False
 if 'modo_panel' not in st.session_state: st.session_state.modo_panel = False
 if 'ver_historial' not in st.session_state: st.session_state.ver_historial = False
 
-# --- DIALOGO CONFIRMACIÓN ---
+# --- DIALOGO CONFIRMACIÓN MOVIMIENTO ---
 @st.dialog("Confirmar Movimiento")
 def confirmar_mov(k, v, cant, op):
     st.warning(f"¿Confirmas {op} {cant} cajas a {k.split('_')[-1]}?")
@@ -94,17 +97,32 @@ def confirmar_mov(k, v, cant, op):
         st.session_state.clear(); st.rerun()
     if c2.button("CANCELAR", use_container_width=True): st.rerun()
 
+# --- DIALOGO ELIMINAR ARTÍCULO ---
+@st.dialog("Eliminar Artículo")
+def confirmar_borrado_item(k):
+    st.error(f"⚠️ **¿BORRAR PERMANENTEMENTE?**")
+    st.write(f"El código **{k.split('_')[-1]}** se eliminará de la base de datos.")
+    c1, c2 = st.columns(2)
+    if c1.button("🔥 ELIMINAR", use_container_width=True):
+        guardar_cambio_google(sh, "INVENTARIO", "DELETE_ITEM", [k])
+        guardar_cambio_google(sh, "LOGS", "ADD_LOG", [st.session_state.usuario_actual, "BORRADO", f"Eliminó el código {k}"])
+        st.session_state.clear(); st.rerun()
+    if c2.button("VOLVER", use_container_width=True): st.rerun()
+
 # --- TARJETA ---
-def mostrar_tarjeta(k, v, suf):
+def mostrar_tarjeta(k, v, suf, permite_borrar=False):
     with st.container(border=True):
-        c1, c2, c3 = st.columns([2, 1, 2.5])
+        c1, c2, c3 = st.columns([2, 1, 3])
         c1.markdown(f"**{k.split('_')[-1]}**\n<small>{v['marca']} | {v['deposito']}</small>", unsafe_allow_html=True)
         c2.write(f"📦 {v['stock']}")
         with c3:
             cant = st.number_input("n", min_value=1, key=f"n_{suf}_{k}", label_visibility="collapsed")
-            b1, b2 = st.columns(2)
-            if b1.button("➕", key=f"btn_add_{suf}_{k}"): confirmar_mov(k, v, cant, "SUMAR")
-            if b2.button("➖", key=f"btn_sub_{suf}_{k}", disabled=v['stock']<cant): confirmar_mov(k, v, cant, "RESTAR")
+            # Ajustamos columnas según si hay botón de borrar o no
+            cols_btn = st.columns([1, 1, 1]) if permite_borrar else st.columns(2)
+            if cols_btn[0].button("➕", key=f"btn_add_{suf}_{k}"): confirmar_mov(k, v, cant, "SUMAR")
+            if cols_btn[1].button("➖", key=f"btn_sub_{suf}_{k}", disabled=v['stock']<cant): confirmar_mov(k, v, cant, "RESTAR")
+            if permite_borrar:
+                if cols_btn[2].button("🗑️", key=f"btn_del_{suf}_{k}"): confirmar_borrado_item(k)
 
 # --- 3. INTERFAZ ---
 st.title("🏢 Sistema de Bodega")
@@ -129,19 +147,17 @@ elif not st.session_state.modo_panel:
             items_totales = {k: v for k, v in inv.items() if v['marca']==m and v['deposito']==d_v}
             con_stock = {k: v for k, v in items_totales.items() if v['stock'] > 0}
             sin_stock = {k: v for k, v in items_totales.items() if v['stock'] == 0}
-            
             for kid, info in sorted(con_stock.items()):
                 st.write(f"**{kid.split('_')[-1]}**: {info['stock']} cajas")
-            
             if sin_stock:
                 with st.expander("🚫 ARTÍCULOS SIN STOCK"):
-                    for kid, info in sorted(sin_stock.items()):
-                        st.write(f"❌ {kid.split('_')[-1]}")
+                    for kid, info in sorted(sin_stock.items()): st.write(f"❌ {kid.split('_')[-1]}")
 else:
     st.header("🛠️ Panel Edición")
     bus_ed = st.text_input("🎯 Buscar código rápido:", key="bus_edit").upper().strip()
     if bus_ed:
-        for k, v in {k: v for k, v in inv.items() if bus_ed in k}.items(): mostrar_tarjeta(k, v, "rap")
+        for k, v in {k: v for k, v in inv.items() if bus_ed in k}.items(): 
+            mostrar_tarjeta(k, v, "rap", permite_borrar=(v['stock']==0))
     st.divider()
     dep_p = st.selectbox("Bodega de trabajo:", config["depositos"], key="sel_dep_edit")
     mlist_e = config["marcas"] if config["marcas"] else ["GENERAL"]
@@ -151,14 +167,12 @@ else:
             items_panel = {k: v for k, v in inv.items() if v['marca']==m_p and v['deposito']==dep_p}
             con_s_p = {k: v for k, v in items_panel.items() if v['stock'] > 0}
             sin_s_p = {k: v for k, v in items_panel.items() if v['stock'] == 0}
-            
             for k, v in sorted(con_s_p.items()): mostrar_tarjeta(k, v, f"pan_{i}")
-            
             if sin_s_p:
                 with st.expander("🚫 ARTÍCULOS SIN STOCK"):
-                    for k, v in sorted(sin_s_p.items()): mostrar_tarjeta(k, v, f"sin_{i}")
+                    for k, v in sorted(sin_s_p.items()): mostrar_tarjeta(k, v, f"sin_{i}", permite_borrar=True)
 
-# --- SIDEBAR (SE MANTIENE IGUAL) ---
+# --- SIDEBAR (USUARIOS, BODEGAS, MARCAS) ---
 with st.sidebar:
     st.header("🔐 Acceso")
     if not st.session_state.edit_mode:
