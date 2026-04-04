@@ -91,22 +91,6 @@ if 'modo_panel' not in st.session_state: st.session_state.modo_panel = False
 if 'ver_historial' not in st.session_state: st.session_state.ver_historial = False
 
 # --- DIALOGOS ---
-@st.dialog("Detalle del Artículo")
-def mostrar_detalle_dialogo(k, v):
-    st.write(f"### 📦 {k.split('_')[-1]}")
-    st.divider()
-    c1, c2 = st.columns(2)
-    c1.metric("Stock Actual", f"{v['stock']} cajas")
-    c1.write(f"**Marca:** {v['marca']}")
-    c1.write(f"**Bodega:** {v['deposito']}")
-    
-    if v['stock'] == 0:
-        st.error("🚨 ESTE ARTÍCULO NO TIENE STOCK")
-    else:
-        st.success("✅ Artículo disponible")
-    
-    if st.button("Cerrar"): st.rerun()
-
 @st.dialog("Confirmar Movimiento")
 def confirmar_mov(k, v, cant, op):
     st.warning(f"¿Confirmas {op} {cant} cajas a {k.split('_')[-1]}?")
@@ -130,7 +114,7 @@ def confirmar_borrado_item(k):
         st.rerun()
     if c2.button("VOLVER", use_container_width=True): st.rerun()
 
-# --- TARJETA ---
+# --- TARJETA DE EDICIÓN ---
 def mostrar_tarjeta(k, v, suf, permite_borrar=False):
     with st.container(border=True):
         c1, c2, c3 = st.columns([2, 1, 3])
@@ -144,8 +128,8 @@ def mostrar_tarjeta(k, v, suf, permite_borrar=False):
             if permite_borrar:
                 if cols_btn[2].button("🗑️", key=f"btn_del_{suf}_{k}"): confirmar_borrado_item(k)
 
-# --- 3. INTERFAZ ---
-st.title("🏢 Sistema de Bodega")
+# --- 3. INTERFAZ PRINCIPAL ---
+st.title("🏢 Gestión de Bodega")
 
 if st.session_state.ver_historial:
     st.header("📜 Historial")
@@ -153,34 +137,38 @@ if st.session_state.ver_historial:
     st.dataframe(pd.DataFrame(logs).iloc[::-1], use_container_width=True)
 
 elif not st.session_state.modo_panel:
-    # --- VISTA PRINCIPAL (LIMPIA) ---
-    st.subheader("🔍 Consulta Rápida")
-    busq = st.text_input("Buscar código...", key="bus_main").upper().strip()
+    # --- VISTA DE INICIO LIMPIA ---
+    col_l1, col_l2 = st.columns(2)
     
-    st.divider()
-    d_v = st.selectbox("Bodega:", config["depositos"], key="sel_dep_main")
-    mlist = config["marcas"] if config["marcas"] else ["GENERAL"]
-    tabs_m = st.tabs(mlist)
-    
-    for i, m in enumerate(mlist):
-        with tabs_m[i]:
-            items = {k: v for k, v in inv.items() if v['marca']==m and v['deposito']==d_v}
+    with col_l1:
+        with st.expander("🔍 **BUSCADOR DE ARTÍCULO**", expanded=False):
+            busq = st.text_input("Escribe el código:", key="bus_main").upper().strip()
             if busq:
-                items = {k: v for k, v in items.items() if busq in k}
+                resultados = {k: v for k, v in inv.items() if busq in k}
+                if resultados:
+                    for k, v in resultados.items():
+                        st.info(f"📍 **{v['deposito']}** | {v['marca']} | **Stock: {v['stock']}**")
+                else:
+                    st.warning("No se encontró el código.")
+
+    with col_l2:
+        with st.expander("📦 **VER POR BODEGA**", expanded=False):
+            d_v = st.selectbox("Selecciona Bodega:", config["depositos"], key="sel_dep_main")
+            mlist = config["marcas"] if config["marcas"] else ["GENERAL"]
+            m_v = st.selectbox("Selecciona Marca:", mlist, key="sel_marca_main")
             
-            for kid, info in sorted(items.items()):
-                c_nom, c_ver = st.columns([4, 1])
-                # Mostrar solo el nombre
-                prefix = "✅" if info['stock'] > 0 else "❌"
-                c_nom.write(f"{prefix} **{kid.split('_')[-1]}**")
-                # Botón para ver detalle
-                if c_ver.button("👁️ Ver", key=f"ver_{kid}"):
-                    mostrar_detalle_dialogo(kid, info)
+            items_filtrados = {k: v for k, v in inv.items() if v['marca']==m_v and v['deposito']==d_v}
+            if items_filtrados:
+                for kid, info in sorted(items_filtrados.items()):
+                    prefix = "✅" if info['stock'] > 0 else "❌"
+                    st.write(f"{prefix} **{kid.split('_')[-1]}**: {info['stock']} cajas")
+            else:
+                st.write("Sin artículos en esta selección.")
 
 else:
-    # --- PANEL DE EDICIÓN (CON TARJETAS) ---
+    # --- PANEL DE EDICIÓN ---
     st.header("🛠️ Panel Edición")
-    bus_ed = st.text_input("🎯 Buscar código rápido:", key="bus_edit").upper().strip()
+    bus_ed = st.text_input("🎯 Buscar para editar:", key="bus_edit").upper().strip()
     if bus_ed:
         for k, v in {k: v for k, v in inv.items() if bus_ed in k}.items(): 
             mostrar_tarjeta(k, v, "rap", permite_borrar=(v['stock']==0))
@@ -191,12 +179,8 @@ else:
     for i, m_p in enumerate(mlist_e):
         with tabs_e[i]:
             it_p = {k: v for k, v in inv.items() if v['marca']==m_p and v['deposito']==dep_p}
-            c_s_p = {k: v for k, v in it_p.items() if v['stock'] > 0}
-            s_s_p = {k: v for k, v in it_p.items() if v['stock'] == 0}
-            for k, v in sorted(c_s_p.items()): mostrar_tarjeta(k, v, f"pan_{i}")
-            if s_s_p:
-                with st.expander("🚫 ARTÍCULOS SIN STOCK"):
-                    for k, v in sorted(s_s_p.items()): mostrar_tarjeta(k, v, f"sin_{i}", permite_borrar=True)
+            for k, v in sorted(it_p.items()):
+                mostrar_tarjeta(k, v, f"pan_{i}", permite_borrar=(v['stock']==0))
 
 # --- SIDEBAR ---
 with st.sidebar:
