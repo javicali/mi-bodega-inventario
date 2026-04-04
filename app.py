@@ -149,8 +149,8 @@ elif not st.session_state.modo_panel:
 
     st.divider()
 
-    # --- BOTÓN PARA EL MENÚ DE MARCAS ---
-    if st.button("📋 ABRIR MENÚ DE MARCAS / BODEGAS", use_container_width=True):
+    # --- BOTÓN PARA EL MENÚ DE MARCAS (MODIFICADO AQUÍ) ---
+    if st.button("📦 ABRIR BODEGA", use_container_width=True):
         st.session_state.ver_menu_marcas = not st.session_state.get('ver_menu_marcas', False)
         st.rerun()
 
