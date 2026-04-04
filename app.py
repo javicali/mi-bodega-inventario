@@ -93,7 +93,6 @@ def txt_cajas(n): return f"{n} caja" if n == 1 else f"{n} cajas"
 # --- 2. INICIALIZACIÓN ---
 st.set_page_config(page_title="Bodega Pro Ultra", layout="wide")
 
-# Contadores para resetear widgets de entrada
 if 'reset_pub' not in st.session_state: st.session_state.reset_pub = 0
 if 'reset_pan' not in st.session_state: st.session_state.reset_pan = 0
 
@@ -112,19 +111,14 @@ def confirmar_mov(k, v, cant, op):
     partes = k.split("_")
     nombre_bodega = partes[0]
     codigo_prod = partes[-1]
-    
     st.warning(f"¿Confirmas que {op} {txt_cajas(cant)} de {codigo_prod}?")
     c1, c2 = st.columns(2)
-    
     if c1.button("SÍ, GUARDAR", use_container_width=True):
         nuevo = v['stock'] + cant if op == 'ENTRÓ' else v['stock'] - cant
         guardar_cambio_google(sh, "INVENTARIO", "UPDATE_STOCK", [k, nuevo])
-        
         preposicion = "a" if op == "ENTRÓ" else "de"
         detalle_log = f"{txt_cajas(cant)} de {codigo_prod} {preposicion} {nombre_bodega}"
-        
         guardar_cambio_google(sh, "LOGS", "ADD_LOG", [st.session_state.usuario_actual, op, detalle_log])
-        
         st.toast(f"✅ ¡{op} registrado!", icon='📦')
         recargar(); st.rerun()
     if c2.button("CANCELAR", use_container_width=True): st.rerun()
@@ -162,12 +156,17 @@ if st.session_state.get('ver_historial', False):
     st.dataframe(pd.DataFrame(logs).iloc[::-1], use_container_width=True)
 elif not st.session_state.get('modo_panel', False):
     st.subheader("🔍 Consulta")
+    # El botón de limpiar solo aparece si hay texto en el input
     col_input, col_lupa, col_clear = st.columns([4, 1, 1])
-    with col_input: bus_p = st.text_input("Código:", key=f"in_pub_{st.session_state.reset_pub}", label_visibility="collapsed").upper().strip()
-    with col_lupa: btn_lupa = st.button("🔍 OK", key="btn_lupa_pub", use_container_width=True)
-    with col_clear: 
-        if st.button("🧹", key="btn_clear_pub", use_container_width=True):
-            st.session_state.reset_pub += 1; st.rerun()
+    with col_input: 
+        bus_p = st.text_input("Código:", key=f"in_pub_{st.session_state.reset_pub}", label_visibility="collapsed").upper().strip()
+    with col_lupa: 
+        btn_lupa = st.button("🔍 OK", key="btn_lupa_pub", use_container_width=True)
+    with col_clear:
+        # Lógica dinámica para el botón Limpiar en Inicio
+        if bus_p:
+            if st.button("🧹", key="btn_clear_pub", use_container_width=True):
+                st.session_state.reset_pub += 1; st.rerun()
             
     if bus_p or btn_lupa:
         enc = {k: v for k, v in inv.items() if str(k.split('_')[-1]) == bus_p}
@@ -186,19 +185,22 @@ elif not st.session_state.get('modo_panel', False):
         for item in final: st.write(f"📦 **{item['codigo']}** | {item['marca']} | **{txt_cajas(item['stock'])}**")
 else:
     st.header("🛠️ Panel")
-    # --- BÚSQUEDA EN PANEL CON ICONOS BUSCAR Y LIMPIAR ---
     col_in_p, col_btn_p, col_clr_p = st.columns([4, 1, 1])
-    with col_in_p: bus_e = st.text_input("🎯 Código:", key=f"in_pan_{st.session_state.reset_pan}", label_visibility="collapsed").upper().strip()
-    with col_btn_p: btn_lupa_p = st.button("🔍", key="btn_lupa_pan", use_container_width=True)
-    with col_clr_p: 
-        if st.button("🧹", key="btn_clear_pan", use_container_width=True):
-            st.session_state.reset_pan += 1; st.rerun()
+    with col_in_p: 
+        bus_e = st.text_input("🎯 Código:", key=f"in_pan_{st.session_state.reset_pan}", label_visibility="collapsed").upper().strip()
+    with col_btn_p: 
+        btn_lupa_p = st.button("🔍", key="btn_lupa_pan", use_container_width=True)
+    with col_clr_p:
+        # Lógica dinámica para el botón Limpiar en Panel
+        if bus_e:
+            if st.button("🧹", key="btn_clear_pan", use_container_width=True):
+                st.session_state.reset_pan += 1; st.rerun()
     
     if bus_e or btn_lupa_p:
         enc_ed = {k: v for k, v in inv.items() if str(k.split('_')[-1]) == bus_e}
         if enc_ed:
             for k, v in enc_ed.items(): mostrar_tarjeta(k, v, "rap")
-        else:
+        elif bus_e:
             st.info("Código no encontrado")
     
     st.divider()
