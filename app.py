@@ -84,6 +84,10 @@ if 'data_loaded' not in st.session_state:
     recargar()
     st.session_state.data_loaded = True
 
+# Variables de estado para los botones del inicio
+if 'ver_buscador' not in st.session_state: st.session_state.ver_buscador = False
+if 'ver_menu_marcas' not in st.session_state: st.session_state.ver_menu_marcas = False
+
 inv, config, logs, sh = st.session_state.inv, st.session_state.config, st.session_state.logs, st.session_state.sh
 
 if 'edit_mode' not in st.session_state: st.session_state.edit_mode = False
@@ -103,17 +107,6 @@ def confirmar_mov(k, v, cant, op):
         st.rerun()
     if c2.button("CANCELAR", use_container_width=True): st.rerun()
 
-@st.dialog("Eliminar Artículo")
-def confirmar_borrado_item(k):
-    st.error(f"⚠️ **¿BORRAR?**")
-    c1, c2 = st.columns(2)
-    if c1.button("🔥 ELIMINAR", use_container_width=True):
-        guardar_cambio_google(sh, "INVENTARIO", "DELETE_ITEM", [k])
-        guardar_cambio_google(sh, "LOGS", "ADD_LOG", [st.session_state.usuario_actual, "BORRADO", f"Eliminó {k}"])
-        recargar()
-        st.rerun()
-    if c2.button("VOLVER", use_container_width=True): st.rerun()
-
 # --- TARJETA DE EDICIÓN ---
 def mostrar_tarjeta(k, v, suf, permite_borrar=False):
     with st.container(border=True):
@@ -122,14 +115,12 @@ def mostrar_tarjeta(k, v, suf, permite_borrar=False):
         c2.write(f"📦 {v['stock']}")
         with c3:
             cant = st.number_input("n", min_value=1, key=f"n_{suf}_{k}", label_visibility="collapsed")
-            cols_btn = st.columns([1, 1, 1]) if permite_borrar else st.columns(2)
+            cols_btn = st.columns(2)
             if cols_btn[0].button("➕", key=f"btn_add_{suf}_{k}"): confirmar_mov(k, v, cant, "SUMAR")
             if cols_btn[1].button("➖", key=f"btn_sub_{suf}_{k}", disabled=v['stock']<cant): confirmar_mov(k, v, cant, "RESTAR")
-            if permite_borrar:
-                if cols_btn[2].button("🗑️", key=f"btn_del_{suf}_{k}"): confirmar_borrado_item(k)
 
 # --- 3. INTERFAZ PRINCIPAL ---
-st.title("🏢 Gestión de Bodega")
+st.title("🏢 Bodega Central")
 
 if st.session_state.ver_historial:
     st.header("📜 Historial")
@@ -137,50 +128,66 @@ if st.session_state.ver_historial:
     st.dataframe(pd.DataFrame(logs).iloc[::-1], use_container_width=True)
 
 elif not st.session_state.modo_panel:
-    # --- VISTA DE INICIO LIMPIA ---
-    col_l1, col_l2 = st.columns(2)
+    # --- BOTONES DE INICIO ---
+    col1, col2 = st.columns(2)
     
-    with col_l1:
-        with st.expander("🔍 **BUSCADOR DE ARTÍCULO**", expanded=False):
-            busq = st.text_input("Escribe el código:", key="bus_main").upper().strip()
-            if busq:
-                resultados = {k: v for k, v in inv.items() if busq in k}
-                if resultados:
-                    for k, v in resultados.items():
-                        st.info(f"📍 **{v['deposito']}** | {v['marca']} | **Stock: {v['stock']}**")
-                else:
-                    st.warning("No se encontró el código.")
+    if col1.button("🔍 BUSCAR CÓDIGO", use_container_width=True):
+        st.session_state.ver_buscador = not st.session_state.ver_buscador
+        st.session_state.ver_menu_marcas = False
+        st.rerun()
+        
+    if col2.button("📋 MENÚ DE MARCAS", use_container_width=True):
+        st.session_state.ver_menu_marcas = not st.session_state.ver_menu_marcas
+        st.session_state.ver_buscador = False
+        st.rerun()
 
-    with col_l2:
-        with st.expander("📦 **VER POR BODEGA**", expanded=False):
-            d_v = st.selectbox("Selecciona Bodega:", config["depositos"], key="sel_dep_main")
-            mlist = config["marcas"] if config["marcas"] else ["GENERAL"]
-            m_v = st.selectbox("Selecciona Marca:", mlist, key="sel_marca_main")
-            
-            items_filtrados = {k: v for k, v in inv.items() if v['marca']==m_v and v['deposito']==d_v}
-            if items_filtrados:
-                for kid, info in sorted(items_filtrados.items()):
-                    prefix = "✅" if info['stock'] > 0 else "❌"
-                    st.write(f"{prefix} **{kid.split('_')[-1]}**: {info['stock']} cajas")
-            else:
-                st.write("Sin artículos en esta selección.")
+    st.divider()
+
+    # --- LÓGICA DEL BUSCADOR ---
+    if st.session_state.ver_buscador:
+        c_bus1, c_bus2 = st.columns([3, 1])
+        busq = c_bus1.text_input("Ingresa el código:", key="input_busq").upper().strip()
+        if c_bus2.button("CONFIRMAR", use_container_width=True):
+            if busq:
+                res = {k: v for k, v in inv.items() if busq in k}
+                if res:
+                    for k, v in res.items():
+                        st.success(f"📍 **{v['deposito']}** | {v['marca']} | **Stock: {v['stock']}**")
+                else:
+                    st.error("No existe ese código.")
+
+    # --- LÓGICA DEL MENÚ DE MARCAS ---
+    if st.session_state.ver_menu_marcas:
+        c_m1, c_m2 = st.columns(2)
+        d_v = c_m1.selectbox("Bodega:", config["depositos"])
+        mlist = config["marcas"] if config["marcas"] else ["GENERAL"]
+        m_v = c_m2.selectbox("Marca:", mlist)
+        
+        st.write(f"### Lista: {m_v} en {d_v}")
+        items_f = {k: v for k, v in inv.items() if v['marca']==m_v and v['deposito']==d_v}
+        if items_f:
+            for kid, info in sorted(items_f.items()):
+                prefix = "✅" if info['stock'] > 0 else "❌"
+                st.write(f"{prefix} **{kid.split('_')[-1]}**: {info['stock']} cajas")
+        else:
+            st.info("No hay artículos aquí.")
 
 else:
     # --- PANEL DE EDICIÓN ---
-    st.header("🛠️ Panel Edición")
+    st.header("🛠️ Panel de Trabajo")
     bus_ed = st.text_input("🎯 Buscar para editar:", key="bus_edit").upper().strip()
     if bus_ed:
         for k, v in {k: v for k, v in inv.items() if bus_ed in k}.items(): 
-            mostrar_tarjeta(k, v, "rap", permite_borrar=(v['stock']==0))
+            mostrar_tarjeta(k, v, "rap")
     st.divider()
-    dep_p = st.selectbox("Bodega de trabajo:", config["depositos"], key="sel_dep_edit")
+    dep_p = st.selectbox("Bodega:", config["depositos"], key="sel_dep_edit")
     mlist_e = config["marcas"] if config["marcas"] else ["GENERAL"]
     tabs_e = st.tabs(mlist_e)
     for i, m_p in enumerate(mlist_e):
         with tabs_e[i]:
             it_p = {k: v for k, v in inv.items() if v['marca']==m_p and v['deposito']==dep_p}
             for k, v in sorted(it_p.items()):
-                mostrar_tarjeta(k, v, f"pan_{i}", permite_borrar=(v['stock']==0))
+                mostrar_tarjeta(k, v, f"pan_{i}")
 
 # --- SIDEBAR ---
 with st.sidebar:
@@ -188,14 +195,14 @@ with st.sidebar:
     if not st.session_state.edit_mode:
         u = st.selectbox("Usuario", list(config["usuarios"].keys()))
         p = st.text_input("Clave", type="password")
-        if st.button("🔓 Entrar", key="btn_login"):
+        if st.button("🔓 Entrar"):
             if config["usuarios"].get(u) == p:
                 st.session_state.edit_mode, st.session_state.usuario_actual = True, u
                 st.rerun()
     else:
         st.write(f"👤 **{st.session_state.usuario_actual}**")
         
-        if st.button("⚙️ PANEL" if not st.session_state.modo_panel else "🏠 INICIO", key="btn_toggle_panel", use_container_width=True):
+        if st.button("⚙️ PANEL" if not st.session_state.modo_panel else "🏠 INICIO", use_container_width=True):
             st.session_state.modo_panel = not st.session_state.modo_panel
             st.rerun()
 
@@ -203,7 +210,7 @@ with st.sidebar:
             nma = st.selectbox("Marca", config["marcas"], key="new_item_m")
             nco = st.text_input("Código", key="new_item_c").upper().strip()
             nbo = st.selectbox("Bodega", config["depositos"], key="new_item_b")
-            if st.button("💾 Crear Item", key="btn_crear_item"):
+            if st.button("💾 Crear Item"):
                 if nco: 
                     guardar_cambio_google(sh, "INVENTARIO", "NUEVO_ITEM", [nma, nbo, nco, 0])
                     recargar()
@@ -212,61 +219,61 @@ with st.sidebar:
         if st.session_state.usuario_actual.upper() == "ADMIN":
             with st.expander("👤 Gestión de Usuarios"):
                 nu_n = st.text_input("Nombre Nuevo").upper().strip()
-                nu_c = st.text_input("Clave Nueva", type="password", key="new_u_key")
-                if st.button("🚀 Crear Usuario", key="btn_crear_u"):
+                nu_c = st.text_input("Clave Nueva", type="password")
+                if st.button("🚀 Crear Usuario"):
                     if nu_n: 
                         guardar_cambio_google(sh, "CONFIG", "MANAGE_USER", [nu_n, nu_c, "CREAR"])
                         recargar()
                         st.rerun()
                 st.divider()
-                u_s = st.selectbox("Seleccionar:", [u for u in config["usuarios"].keys() if u != "ADMIN"], key="u_sel_edit")
+                u_s = st.selectbox("Seleccionar:", [u for u in config["usuarios"].keys() if u != "ADMIN"])
                 n_p = st.text_input("Nueva Clave", type="password", key="mod_u_key")
                 c1, c2 = st.columns(2)
-                if c1.button("💾 Modificar", key="btn_mod_u"):
+                if c1.button("💾 Modificar"):
                     guardar_cambio_google(sh, "CONFIG", "MANAGE_USER", [u_s, n_p, "MODIFICAR"])
                     recargar()
                     st.rerun()
-                if c2.button("🗑️ Eliminar", key="btn_del_u"):
+                if c2.button("🗑️ Eliminar"):
                     guardar_cambio_google(sh, "CONFIG", "MANAGE_USER", [u_s, "", "ELIMINAR"])
                     recargar()
                     st.rerun()
 
             with st.expander("🏷️ Gestión de Marcas"):
-                m_s = st.selectbox("Marca:", config["marcas"], key="m_edit_sel")
-                if st.button("🗑️ Borrar Marca", key="btn_del_m"):
+                m_s = st.selectbox("Marca:", config["marcas"])
+                if st.button("🗑️ Borrar Marca"):
                     guardar_cambio_google(sh, "CONFIG", "DEL_CONFIG", [m_s, 4])
                     recargar()
                     st.rerun()
                 st.divider()
-                nm = st.text_input("Añadir Marca", key="m_add_input").upper().strip()
-                if st.button("➕ Añadir Marca", key="btn_add_m"):
+                nm = st.text_input("Añadir Marca").upper().strip()
+                if st.button("➕ Añadir Marca"):
                     if nm: 
                         guardar_cambio_google(sh, "CONFIG", "ADD_CONFIG", [nm, 4])
                         recargar()
                         st.rerun()
 
             with st.expander("🏘️ Gestión de Bodegas"):
-                b_s = st.selectbox("Bodega:", config["depositos"], key="b_edit_sel")
-                n_nb = st.text_input("Nuevo nombre:", key="b_rename_input").upper().strip()
-                if st.button("📝 Renombrar", key="btn_ren_b"):
+                b_s = st.selectbox("Bodega:", config["depositos"])
+                n_nb = st.text_input("Nuevo nombre:").upper().strip()
+                if st.button("📝 Renombrar"):
                     if n_nb: 
                         guardar_cambio_google(sh, "CONFIG", "RENAME_CONFIG", [b_s, n_nb, 3])
                         recargar()
                         st.rerun()
                 st.divider()
-                nb = st.text_input("Añadir Bodega", key="b_add_input").upper().strip()
-                if st.button("➕ Añadir Bodega", key="btn_add_b"):
+                nb = st.text_input("Añadir Bodega").upper().strip()
+                if st.button("➕ Añadir Bodega"):
                     if nb: 
                         guardar_cambio_google(sh, "CONFIG", "ADD_CONFIG", [nb, 3])
                         recargar()
                         st.rerun()
 
-            if st.button("📜 HISTORIAL", key="btn_hist", use_container_width=True): 
+            if st.button("📜 HISTORIAL", use_container_width=True): 
                 st.session_state.ver_historial = True
                 st.rerun()
 
         st.divider()
-        if st.button("🔒 Salir", key="btn_logout", use_container_width=True): 
+        if st.button("🔒 Salir", use_container_width=True): 
             st.session_state.edit_mode = False
             st.session_state.usuario_actual = None
             st.rerun()
