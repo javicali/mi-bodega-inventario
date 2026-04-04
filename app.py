@@ -27,13 +27,11 @@ def cargar_datos_google():
         sh = conectar_google()
         if not sh: return {}, def_config, [], None
         
-        # Cargar Inventario
         ws_inv = sh.worksheet("INVENTARIO")
         datos_inv = ws_inv.get_all_records()
         inv = {f"{r['DEPOSITO']}_{r['CODIGO']}": {"marca": r['MARCA'], "deposito": r['DEPOSITO'], "stock": int(r['STOCK'])} 
                for r in datos_inv if str(r.get('CODIGO')).strip()}
         
-        # Cargar Configuración (Usuarios, Bodegas, Marcas)
         ws_conf = sh.worksheet("CONFIG")
         df_conf = pd.DataFrame(ws_conf.get_all_records())
         list_users = {str(r['USUARIO']).strip(): str(r['CLAVE']).strip() for _, r in df_conf.iterrows() if str(r.get('USUARIO')).strip()}
@@ -44,14 +42,12 @@ def cargar_datos_google():
                   "depositos": list_depos if list_depos else def_config["depositos"],
                   "marcas": list_marcas if list_marcas else def_config["marcas"]}
         
-        # Cargar Logs
         ws_log = sh.worksheet("LOGS")
         logs_data = ws_log.get_all_records()
         
         return inv, config, logs_data, sh
     except: return {}, def_config, [], None
 
-# --- FUNCIÓN PARA GENERAR REPORTE EXCEL ---
 def generar_excel_reporte(datos_inv):
     reporte = []
     for k, v in datos_inv.items():
@@ -164,11 +160,11 @@ if st.session_state.get('ver_historial', False):
     st.dataframe(pd.DataFrame(logs).iloc[::-1], use_container_width=True)
 
 elif not st.session_state.get('modo_panel', False):
-    # --- CONSULTA (BÚSQUEDA EXACTA) ---
+    # --- CONSULTA PÚBLICA (COINCIDENCIA EXACTA) ---
     st.subheader("🔍 Consulta de Stock")
     col_input, col_lupa = st.columns([4, 1])
     with col_input:
-        codigo_actual = st.text_input("Buscar código exacto:", value=st.session_state.busqueda_interna, placeholder="Escribe el código y pulsa OK", label_visibility="collapsed").upper().strip()
+        codigo_actual = st.text_input("Código exacto:", value=st.session_state.busqueda_interna, placeholder="Ej: 212", label_visibility="collapsed").upper().strip()
         st.session_state.busqueda_interna = codigo_actual
     with col_lupa:
         btn_lupa = st.button("🔍 OK", use_container_width=True)
@@ -176,9 +172,7 @@ elif not st.session_state.get('modo_panel', False):
     if st.session_state.busqueda_interna or btn_lupa:
         bus = st.session_state.busqueda_interna
         if bus:
-            # FILTRO EXACTO: Comparamos el código final del ID con la búsqueda
             encontrados = {k: v for k, v in inv.items() if str(k.split('_')[-1]) == bus}
-            
             if encontrados:
                 for k, v in encontrados.items():
                     color = "green" if v['stock'] > 0 else "red"
@@ -188,15 +182,13 @@ elif not st.session_state.get('modo_panel', False):
                         <p style="margin:0;"><b>Bodega:</b> {v['deposito']} | <b>Marca:</b> {v['marca']}</p>
                         <h2 style="margin:0; color:{color};">Stock: {txt_cajas(v['stock'])}</h2>
                     </div>""", unsafe_allow_html=True)
-                if st.button("🗑️ Limpiar Búsqueda", use_container_width=True):
+                if st.button("🗑️ Limpiar", use_container_width=True):
                     st.session_state.busqueda_interna = ""; st.rerun()
             else:
                 st.error(f"❌ El código '{bus}' no existe.")
-                if st.button("🔄 Intentar de nuevo"):
-                    st.session_state.busqueda_interna = ""; st.rerun()
 
     st.divider()
-    if st.button("📦 ABRIR BODEGA (LISTADO)", use_container_width=True):
+    if st.button("📦 VER LISTADO POR BODEGA", use_container_width=True):
         st.session_state.ver_menu_marcas = not st.session_state.get('ver_menu_marcas', False); st.rerun()
 
     if st.session_state.get('ver_menu_marcas', False):
@@ -208,12 +200,16 @@ elif not st.session_state.get('modo_panel', False):
         else: st.warning("No hay artículos con stock.")
 
 else:
-    # --- PANEL DE TRABAJO (EDICIÓN) ---
+    # --- PANEL DE TRABAJO (EDICIÓN CON COINCIDENCIA EXACTA) ---
     st.header("🛠️ Panel de Trabajo")
-    bus_ed = st.text_input("🎯 Filtrar para editar:", key="bus_edit").upper().strip()
+    bus_ed = st.text_input("🎯 Código exacto para editar:", key="bus_edit").upper().strip()
     if bus_ed:
-        for k, v in {k: v for k, v in inv.items() if bus_ed in k}.items(): 
-            mostrar_tarjeta(k, v, "rap")
+        encontrados_ed = {k: v for k, v in inv.items() if str(k.split('_')[-1]) == bus_ed}
+        if encontrados_ed:
+            for k, v in encontrados_ed.items(): 
+                mostrar_tarjeta(k, v, "rap")
+        else:
+            st.warning(f"⚠️ No existe el código exacto '{bus_ed}'")
         if st.button("🗑️ Limpiar Filtro"):
             st.session_state.bus_edit = ""; st.rerun()
 
@@ -288,15 +284,15 @@ with st.sidebar:
                 if st.button("➕ Añadir"):
                     guardar_cambio_google(sh, "CONFIG", "ADD_CONFIG", [nb, 3]); recargar(); st.rerun()
 
-            # --- SECCIÓN DE REPORTES (BAJO HISTORIAL) ---
             if st.button("📜 HISTORIAL", use_container_width=True): 
                 st.session_state.ver_historial = True; st.rerun()
             
-            st.write("---")
-            st.markdown("**📁 Gestión de Datos**")
+            # --- REPORTE EXCEL DEBAJO DEL HISTORIAL ---
+            st.divider()
+            st.markdown("**📂 Descargas**")
             data_excel = generar_excel_reporte(inv)
             st.download_button(
-                label="📊 REPORTE DE CONTROL FÍSICO",
+                label="📊 REPORTE CONTROL FÍSICO",
                 data=data_excel,
                 file_name=f"Reporte_Bodega_{datetime.now().strftime('%d_%m_%Y')}.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
