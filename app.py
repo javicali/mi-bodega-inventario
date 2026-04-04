@@ -18,8 +18,7 @@ def conectar_google():
         else:
             creds = ServiceAccountCredentials.from_json_keyfile_name('creds.json', SCOPE)
         return gspread.authorize(creds).open(NOMBRE_EXCEL)
-    except:
-        return None
+    except: return None
 
 def cargar_datos_google():
     def_config = {"usuarios": {"ADMIN": "123"}, "depositos": ["PRINCIPAL"], "marcas": ["GENERAL"]}
@@ -43,20 +42,19 @@ def cargar_datos_google():
         ws_log = sh.worksheet("LOGS")
         logs_data = ws_log.get_all_records()
         return inv, config, logs_data, sh
-    except:
-        return {}, def_config, [], None
+    except: return {}, def_config, [], None
 
 def guardar_cambio_google(sh, tab, accion, datos):
     try:
         ws = sh.worksheet(tab)
         if accion == "UPDATE_STOCK":
-            celda = ws.find(datos[0].split("_")[-1])
+            depo, cod = datos[0].split("_", 1)
+            celda = ws.find(cod)
             if celda: ws.update_cell(celda.row, 4, datos[1])
         elif accion == "ADD_LOG":
             hora = (datetime.now() - timedelta(hours=4)).strftime("%d/%m/%Y %H:%M")
             ws.append_row([hora] + datos)
-        elif accion == "NUEVO_ITEM":
-            ws.append_row(datos)
+        elif accion == "NUEVO_ITEM": ws.append_row(datos)
         elif accion == "ADD_CONFIG":
             col_vals = ws.col_values(datos[1])
             ws.update_cell(len(col_vals) + 1, datos[1], datos[0])
@@ -67,17 +65,14 @@ def guardar_cambio_google(sh, tab, accion, datos):
             celda = ws.find(datos[0])
             if celda and celda.col == datos[2]: ws.update_cell(celda.row, datos[2], datos[1])
         elif accion == "MANAGE_USER":
-            # datos = [usuario, clave, operacion]
-            if datos[2] == "CREAR":
-                ws.append_row([datos[0], datos[1]], value_input_option='RAW')
+            if datos[2] == "CREAR": ws.append_row([datos[0], datos[1]], value_input_option='RAW')
             elif datos[2] == "ELIMINAR":
                 celda = ws.find(datos[0])
                 if celda and celda.col == 1: ws.delete_rows(celda.row)
             elif datos[2] == "MODIFICAR":
                 celda = ws.find(datos[0])
                 if celda and celda.col == 1: ws.update_cell(celda.row, 2, datos[1])
-    except:
-        st.error("⚠️ Error de comunicación")
+    except: st.error("⚠️ Error de comunicación")
 
 # --- 2. INICIALIZACIÓN ---
 st.set_page_config(page_title="Bodega Pro Ultra", layout="wide")
@@ -90,21 +85,20 @@ if 'edit_mode' not in st.session_state: st.session_state.edit_mode = False
 if 'modo_panel' not in st.session_state: st.session_state.modo_panel = False
 if 'ver_historial' not in st.session_state: st.session_state.ver_historial = False
 
-# --- TARJETA ---
-def mostrar_tarjeta(k, v, sufijo):
+def mostrar_tarjeta(k, v, suf):
     with st.container(border=True):
         c1, c2, c3 = st.columns([2, 1, 2.5])
         c1.markdown(f"**{k.split('_')[-1]}**\n<small>{v['marca']} | {v['deposito']}</small>", unsafe_allow_html=True)
         c2.write(f"📦 {v['stock']}")
         with c3:
-            cant = st.number_input("n", min_value=1, key=f"n_{sufijo}_{k}", label_visibility="collapsed")
+            cant = st.number_input("n", min_value=1, key=f"n_{suf}_{k}", label_visibility="collapsed")
             b1, b2 = st.columns(2)
-            if b1.button("➕", key=f"a_{sufijo}_{k}"):
+            if b1.button("➕", key=f"a_{suf}_{k}"):
                 v['stock'] += cant
                 guardar_cambio_google(sh, "INVENTARIO", "UPDATE_STOCK", [k, v['stock']])
                 guardar_cambio_google(sh, "LOGS", "ADD_LOG", [st.session_state.usuario_actual, "ENTRADA", f"+{cant} {k}"])
                 st.rerun()
-            if b2.button("➖", key=f"s_{sufijo}_{k}", disabled=v['stock']<cant):
+            if b2.button("➖", key=f"s_{suf}_{k}", disabled=v['stock']<cant):
                 v['stock'] -= cant
                 guardar_cambio_google(sh, "INVENTARIO", "UPDATE_STOCK", [k, v['stock']])
                 guardar_cambio_google(sh, "LOGS", "ADD_LOG", [st.session_state.usuario_actual, "SALIDA", f"-{cant} {k}"])
@@ -119,32 +113,40 @@ if st.session_state.ver_historial:
     st.dataframe(pd.DataFrame(logs).iloc[::-1], use_container_width=True)
 
 elif not st.session_state.modo_panel:
+    # --- VISTA CONSULTA ---
     st.subheader("🔍 Buscador")
-    busq = st.text_input("Código", placeholder="Buscar...").upper().strip()
+    busq = st.text_input("Código", placeholder="Buscar...", key="bus_main").upper().strip()
     if busq:
         res = {k: v for k, v in inv.items() if busq in k}
-        for k, v in res.items():
-            st.success(f"✅ {v['deposito']} | {v['marca']} | {k.split('_')[-1]} | STOCK: {v['stock']}")
+        for k, v in res.items(): st.success(f"✅ {v['deposito']} | {v['marca']} | {k.split('_')[-1]} | STOCK: {v['stock']}")
     st.divider()
-    d_v = st.selectbox("Bodega:", config["depositos"])
-    tbs = st.tabs(config["marcas"])
-    for i, m in enumerate(config["marcas"]):
-        with tbs[i]:
+    d_v = st.selectbox("Bodega:", config["depositos"], key="sel_dep_main")
+    
+    # PROTECCIÓN DE PESTAÑAS
+    marcas_list = config["marcas"] if config["marcas"] else ["GENERAL"]
+    tabs_main = st.tabs(marcas_list)
+    for i, m in enumerate(marcas_list):
+        with tabs_main[i]:
             items = {k: v for k, v in inv.items() if v['marca']==m and v['deposito']==d_v}
             for kid, info in sorted(items.items()): st.write(f"**{kid.split('_')[-1]}**: {info['stock']} cajas")
 
 else:
+    # --- PANEL EDICIÓN ---
     st.header("🛠️ Panel Edición")
-    bus_ed = st.text_input("🎯 Buscar código:").upper().strip()
+    bus_ed = st.text_input("🎯 Buscar código rápido:", key="bus_edit_panel").upper().strip()
     if bus_ed:
         for k, v in {k: v for k, v in inv.items() if bus_ed in k}.items(): mostrar_tarjeta(k, v, "rap")
     st.divider()
-    dep_p = st.selectbox("Bodega de trabajo:", config["depositos"])
-    tabs_p = st.tabs(config["marcas"])
-    for i, m_p in enumerate(config["marcas"]):
-        with tbs[i]:
-            for k, v in sorted({k: v for k, v in inv.items() if v['marca']==m_p and v['deposito']==dep_p}.items()):
-                mostrar_tarjeta(k, v, f"tab_{i}")
+    
+    dep_p = st.selectbox("Bodega de trabajo:", config["depositos"], key="sel_dep_edit")
+    
+    # PROTECCIÓN DE PESTAÑAS EN EDICIÓN
+    marcas_edit = config["marcas"] if config["marcas"] else ["GENERAL"]
+    tabs_edit = st.tabs(marcas_edit)
+    for i, m_p in enumerate(marcas_edit):
+        with tabs_edit[i]:
+            items_p = {k: v for k, v in inv.items() if v['marca']==m_p and v['deposito']==dep_p}
+            for k, v in sorted(items_p.items()): mostrar_tarjeta(k, v, f"panel_{i}")
 
 # --- SIDEBAR ---
 with st.sidebar:
@@ -164,57 +166,43 @@ with st.sidebar:
 
         if st.session_state.usuario_actual.upper() == "ADMIN":
             if st.button("📜 HISTORIAL"): st.session_state.ver_historial=True; st.rerun()
-
-            # --- GESTIÓN USUARIOS (NUEVO DISEÑO) ---
-            with st.expander("👤 Gestión de Usuarios"):
-                st.subheader("➕ Crear Nuevo")
-                nu_nom = st.text_input("Nombre Nuevo Usuario").upper().strip()
-                nu_cla = st.text_input("Clave Nueva", type="password", key="cl1")
-                if st.button("🚀 Crear Usuario"):
-                    if nu_nom and nu_cla:
-                        guardar_cambio_google(sh, "CONFIG", "MANAGE_USER", [nu_nom, nu_cla, "CREAR"])
-                        st.success("¡Usuario creado!")
-                        st.session_state.clear(); st.rerun()
-                
+            with st.expander("👤 Usuarios"):
+                nu_nom = st.text_input("Nuevo Usuario").upper().strip()
+                nu_cla = st.text_input("Clave", type="password", key="c_new")
+                if st.button("🚀 Crear"):
+                    if nu_nom: guardar_cambio_google(sh, "CONFIG", "MANAGE_USER", [nu_nom, nu_cla, "CREAR"]); st.session_state.clear(); st.rerun()
                 st.divider()
-                st.subheader("📝 Modificar / 🗑️ Eliminar")
-                u_sel = st.selectbox("Seleccionar Usuario:", [u for u in config["usuarios"].keys() if u != "ADMIN"], key="u_edit")
-                new_p = st.text_input("Nueva Contraseña", type="password", key="cl2")
-                
-                col1, col2 = st.columns(2)
-                if col1.button("💾 Modificar"):
-                    if new_p:
-                        guardar_cambio_google(sh, "CONFIG", "MANAGE_USER", [u_sel, new_p, "MODIFICAR"])
-                        st.session_state.clear(); st.rerun()
-                if col2.button("🗑️ Eliminar"):
-                    guardar_cambio_google(sh, "CONFIG", "MANAGE_USER", [u_sel, "", "ELIMINAR"])
-                    st.session_state.clear(); st.rerun()
+                u_sel = st.selectbox("Editar:", [u for u in config["usuarios"].keys() if u != "ADMIN"])
+                new_p = st.text_input("Nueva Clave", type="password", key="c_mod")
+                c1, c2 = st.columns(2)
+                if c1.button("💾 Mod"): 
+                    guardar_cambio_google(sh, "CONFIG", "MANAGE_USER", [u_sel, new_p, "MODIFICAR"]); st.session_state.clear(); st.rerun()
+                if c2.button("🗑️ Del"): 
+                    guardar_cambio_google(sh, "CONFIG", "MANAGE_USER", [u_sel, "", "ELIMINAR"]); st.session_state.clear(); st.rerun()
 
-            # --- GESTIÓN BODEGAS ---
             with st.expander("🏘️ Bodegas"):
-                b_sel = st.selectbox("Seleccionar Bodega:", config["depositos"], key="b_edit")
-                nuevo_nb = st.text_input("Renombrar a:").upper().strip()
-                if st.button("📝 Cambiar Nombre"):
+                b_sel = st.selectbox("Bodega:", config["depositos"], key="b_ed")
+                nuevo_nb = st.text_input("Nuevo nombre:").upper().strip()
+                if st.button("📝 Renombrar"):
                     if nuevo_nb: guardar_cambio_google(sh, "CONFIG", "RENAME_CONFIG", [b_sel, nuevo_nb, 3]); st.session_state.clear(); st.rerun()
                 st.divider()
                 nb = st.text_input("Añadir Bodega").upper().strip()
                 if st.button("➕ Añadir Bodega"):
                     if nb: guardar_cambio_google(sh, "CONFIG", "ADD_CONFIG", [nb, 3]); st.session_state.clear(); st.rerun()
 
-            # --- GESTIÓN MARCAS ---
             with st.expander("🏷️ Marcas"):
-                m_del = st.selectbox("Seleccionar Marca:", config["marcas"], key="m_edit")
-                if st.button("🗑️ Eliminar esta Marca"):
-                    guardar_cambio_google(sh, "CONFIG", "DEL_CONFIG", [m_del, 4]); st.session_state.clear(); st.rerun()
+                m_sel = st.selectbox("Marca:", config["marcas"], key="m_ed")
+                if st.button("🗑️ Borrar Marca"):
+                    guardar_cambio_google(sh, "CONFIG", "DEL_CONFIG", [m_sel, 4]); st.session_state.clear(); st.rerun()
                 st.divider()
                 nm = st.text_input("Añadir Marca").upper().strip()
                 if st.button("➕ Añadir Marca"):
                     if nm: guardar_cambio_google(sh, "CONFIG", "ADD_CONFIG", [nm, 4]); st.session_state.clear(); st.rerun()
 
         with st.expander("🆕 Nuevo Código"):
-            nma = st.selectbox("Marca", config["marcas"], key="nma_")
+            nma = st.selectbox("Marca", config["marcas"])
             nco = st.text_input("Código").upper().strip()
-            nbo = st.selectbox("Bodega", config["depositos"], key="nbo_")
+            nbo = st.selectbox("Bodega", config["depositos"])
             if st.button("💾 Crear Item"):
                 if nco: guardar_cambio_google(sh, "INVENTARIO", "NUEVO_ITEM", [nma, nbo, nco, 0]); st.session_state.clear(); st.rerun()
 
