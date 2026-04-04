@@ -1,10 +1,3 @@
-Para lograr que el historial sea más descriptivo y siga el formato que pides (**"X cajas de [Código] a bodega [Nombre]"**), he modificado la función `confirmar_mov`. 
-
-Ahora, al momento de guardar el log, el sistema descompone la clave interna (que es `BODEGA_CODIGO`) para redactar la frase exactamente como la necesitas.
-
-Aquí tienes el código completo actualizado:
-
-```python
 import streamlit as st
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
@@ -115,7 +108,6 @@ inv, config, logs, sh = st.session_state.inv, st.session_state.config, st.sessio
 # --- DIALOGOS ---
 @st.dialog("Confirmar Movimiento")
 def confirmar_mov(k, v, cant, op):
-    # Separamos bodega y código para el historial
     partes = k.split("_")
     nombre_bodega = partes[0]
     codigo_prod = partes[-1]
@@ -127,7 +119,7 @@ def confirmar_mov(k, v, cant, op):
         nuevo = v['stock'] + cant if op == 'ENTRÓ' else v['stock'] - cant
         guardar_cambio_google(sh, "INVENTARIO", "UPDATE_STOCK", [k, nuevo])
         
-        # Formato solicitado: "2 cajas de codigo a bodega ARCANI"
+        # Formato: "X cajas de CODIGO a bodega BODEGA"
         detalle_log = f"{txt_cajas(cant)} de {codigo_prod} a bodega {nombre_bodega}"
         guardar_cambio_google(sh, "LOGS", "ADD_LOG", [st.session_state.usuario_actual, op, detalle_log])
         
@@ -165,7 +157,6 @@ st.title("🏢 Bodega Central")
 if st.session_state.get('ver_historial', False):
     st.header("📜 Historial")
     if st.button("⬅️ Volver"): st.session_state.ver_historial = False; st.rerun()
-    # Mostramos el dataframe con el nuevo formato de detalle
     st.dataframe(pd.DataFrame(logs).iloc[::-1], use_container_width=True)
 elif not st.session_state.get('modo_panel', False):
     st.subheader("🔍 Consulta")
@@ -195,7 +186,7 @@ else:
         for k, v in enc_ed.items(): mostrar_tarjeta(k, v, "rap")
     st.divider()
     dep_p = st.selectbox("Bodega:", config["depositos"])
-    tabs_e = st.tabs(config["marcas"])
+    tabs_e = st.tabs(config["marcas"] if config["marcas"] else ["GENERAL"])
     for i, m_p in enumerate(config["marcas"]):
         with tabs_e[i]:
             for k, v in sorted({k: v for k, v in inv.items() if v['marca']==m_p and v['deposito']==dep_p}.items()):
@@ -273,4 +264,3 @@ with st.sidebar:
 
         if st.button("🔒 Salir", use_container_width=True): 
             st.session_state.edit_mode = False; st.rerun()
-```
