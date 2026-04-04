@@ -66,6 +66,9 @@ def guardar_cambio_google(sh, tab, accion, datos):
             hora = (datetime.now() - timedelta(hours=4)).strftime("%d/%m/%Y %H:%M")
             ws.append_row([hora] + datos)
         elif accion == "NUEVO_ITEM": ws.append_row(datos)
+        elif accion == "BORRAR_ITEM":
+            celda = ws.find(str(datos[0].split("_")[-1]))
+            if celda: ws.delete_rows(celda.row)
         elif accion == "ADD_CONFIG":
             col_vals = ws.col_values(datos[1])
             ws.update_cell(len(col_vals) + 1, datos[1], datos[0])
@@ -114,9 +117,26 @@ def confirmar_mov(k, v, cant, op):
         recargar(); st.rerun()
     if c2.button("CANCELAR", use_container_width=True): st.rerun()
 
+@st.dialog("Eliminar Código")
+def confirmar_eliminar(k):
+    st.error(f"¿Estás seguro de eliminar el código {k.split('_')[-1]} permanentemente?")
+    st.write("Esta acción no se puede deshacer.")
+    c1, c2 = st.columns(2)
+    if c1.button("ELIMINAR", use_container_width=True):
+        guardar_cambio_google(sh, "INVENTARIO", "BORRAR_ITEM", [k])
+        guardar_cambio_google(sh, "LOGS", "ADD_LOG", [st.session_state.usuario_actual, "ELIMINÓ", f"Código {k}"])
+        recargar(); st.rerun()
+    if c2.button("CANCELAR", use_container_width=True): st.rerun()
+
 def mostrar_tarjeta(k, v, suf):
     with st.container(border=True):
         c1, c2, c3 = st.columns([2, 1, 3])
+        # Mostrar el icono de eliminar solo si el stock es 0
+        extra_info = ""
+        if v['stock'] == 0:
+            if c1.button("🗑️", key=f"del_{suf}_{k}", help="Eliminar código con 0 stock"):
+                confirmar_eliminar(k)
+        
         c1.markdown(f"**{k.split('_')[-1]}**\n<small>{v['marca']} | {v['deposito']}</small>", unsafe_allow_html=True)
         c2.write(f"📦 {txt_cajas(v['stock'])}")
         with c3:
@@ -177,7 +197,6 @@ elif not st.session_state.get('modo_panel', False):
         elif orden == "Menor Stock ⬇️":
             lista_final = sorted(lista_final, key=lambda x: x['stock'])
 
-        # Icono de caja 📦 añadido aquí
         for item in lista_final:
             st.write(f"📦 **{item['codigo']}** | {item['marca']} | **{txt_cajas(item['stock'])}**")
 
