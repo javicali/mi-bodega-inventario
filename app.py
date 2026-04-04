@@ -142,7 +142,7 @@ elif not st.session_state.modo_panel:
                     st.markdown(f"""
                     <div style="border: 2px solid {color}; padding: 15px; border-radius: 10px; margin-bottom: 10px;">
                         <h3 style="margin:0;">📦 {k.split('_')[-1]}</h3>
-                        <p style="margin:0;"><b>Ubicación:</b> {v['deposito']} | <b>Marca:</b> {v['marca']}</p>
+                        <p style="margin:0;"><b>Bodega:</b> {v['deposito']} | <b>Marca:</b> {v['marca']}</p>
                         <h2 style="margin:0; color:{color};">Stock: {txt_cajas(v['stock'])}</h2>
                     </div>
                     """, unsafe_allow_html=True)
