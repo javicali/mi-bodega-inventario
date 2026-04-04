@@ -92,6 +92,9 @@ def txt_cajas(n):
 # --- 2. INICIALIZACIÓN ---
 st.set_page_config(page_title="Bodega Pro Ultra", layout="wide")
 
+if 'busqueda_interna' not in st.session_state:
+    st.session_state.busqueda_interna = ""
+
 def recargar():
     st.session_state.inv, st.session_state.config, st.session_state.logs, st.session_state.sh = cargar_datos_google()
 
@@ -137,21 +140,24 @@ elif not st.session_state.get('modo_panel', False):
     # --- BUSCADOR PRINCIPAL ---
     st.subheader("🔍 Consulta de Stock")
     
-    # Diseño de búsqueda: Input + Botón Lupa
     col_input, col_lupa = st.columns([4, 1])
     with col_input:
-        codigo_buscado = st.text_input(
+        # Usamos value para que sea controlable y NO key para evitar el error de la API
+        codigo_actual = st.text_input(
             "Buscar código:", 
+            value=st.session_state.busqueda_interna,
             placeholder="Ej: 1415 LIONESA", 
-            label_visibility="collapsed", 
-            key="main_search"
+            label_visibility="collapsed"
         ).upper().strip()
-    with col_lupa:
-        buscar_btn = st.button("🔍 OK", use_container_width=True)
+        st.session_state.busqueda_interna = codigo_actual
 
-    if codigo_buscado or buscar_btn:
-        if codigo_buscado:
-            encontrados = {k: v for k, v in inv.items() if codigo_buscado in k}
+    with col_lupa:
+        btn_lupa = st.button("🔍 OK", use_container_width=True)
+
+    if st.session_state.busqueda_interna or btn_lupa:
+        bus = st.session_state.busqueda_interna
+        if bus:
+            encontrados = {k: v for k, v in inv.items() if bus in k}
             if encontrados:
                 for k, v in encontrados.items():
                     color = "green" if v['stock'] > 0 else "red"
@@ -163,15 +169,13 @@ elif not st.session_state.get('modo_panel', False):
                     </div>
                     """, unsafe_allow_html=True)
                 
-                # BOTÓN DE BORRAR SEGURO (Sin error de API)
                 if st.button("🗑️ Limpiar Búsqueda", use_container_width=True):
-                    # Truco: vaciamos y relanzamos para resetear el widget
-                    st.session_state.main_search = ""
+                    st.session_state.busqueda_interna = ""
                     st.rerun()
             else:
                 st.error("❌ No se encontró ese código.")
-                if st.button("🔄 Limpiar e intentar de nuevo"):
-                    st.session_state.main_search = ""
+                if st.button("🔄 Intentar de nuevo"):
+                    st.session_state.busqueda_interna = ""
                     st.rerun()
 
     st.divider()
