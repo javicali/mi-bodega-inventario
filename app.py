@@ -105,10 +105,12 @@ inv, config, logs, sh = st.session_state.inv, st.session_state.config, st.sessio
 # --- DIALOGOS ---
 @st.dialog("Confirmar Movimiento")
 def confirmar_mov(k, v, cant, op):
-    st.warning(f"¿Confirmas {op} {txt_cajas(cant)} a {k.split('_')[-1]}?")
+    # Traducción visual para el usuario
+    msg_op = "ENTRADA" if op == "ENTRÓ" else "SALIDA"
+    st.warning(f"¿Confirmas {msg_op} de {txt_cajas(cant)} para {k.split('_')[-1]}?")
     c1, c2 = st.columns(2)
     if c1.button("SÍ, GUARDAR", use_container_width=True):
-        nuevo = v['stock'] + cant if op == 'SUMAR' else v['stock'] - cant
+        nuevo = v['stock'] + cant if op == 'ENTRÓ' else v['stock'] - cant
         guardar_cambio_google(sh, "INVENTARIO", "UPDATE_STOCK", [k, nuevo])
         guardar_cambio_google(sh, "LOGS", "ADD_LOG", [st.session_state.usuario_actual, op, f"{txt_cajas(cant)} de {k}"])
         recargar(); st.rerun()
@@ -122,8 +124,8 @@ def mostrar_tarjeta(k, v, suf):
         with c3:
             cant = st.number_input("n", min_value=1, key=f"n_{suf}_{k}", label_visibility="collapsed")
             cols_btn = st.columns(2)
-            if cols_btn[0].button("➕", key=f"btn_add_{suf}_{k}"): confirmar_mov(k, v, cant, "SUMAR")
-            if cols_btn[1].button("➖", key=f"btn_sub_{suf}_{k}", disabled=v['stock']<cant): confirmar_mov(k, v, cant, "RESTAR")
+            if cols_btn[0].button("ENTRÓ", key=f"btn_add_{suf}_{k}"): confirmar_mov(k, v, cant, "ENTRÓ")
+            if cols_btn[1].button("SALIÓ", key=f"btn_sub_{suf}_{k}", disabled=v['stock']<cant): confirmar_mov(k, v, cant, "SALIÓ")
 
 # --- 3. INTERFAZ PRINCIPAL ---
 st.title("🏢 Bodega Central")
@@ -201,22 +203,42 @@ with st.sidebar:
         
         with st.expander("🆕 Nuevo Código"):
             nma, nco, nbo = st.selectbox("Marca", config["marcas"]), st.text_input("Código").upper().strip(), st.selectbox("Bodega", config["depositos"])
-            if st.button("💾 Crear"):
+            if st.button("💾 Crear Item"):
                 if nco: guardar_cambio_google(sh, "INVENTARIO", "NUEVO_ITEM", [nma, nbo, nco, 0]); recargar(); st.rerun()
 
         if st.session_state.usuario_actual.upper() == "ADMIN":
-            with st.expander("👤 Usuarios"):
-                un, uc = st.text_input("Nombre").upper().strip(), st.text_input("Clave admin", type="password")
-                if st.button("🚀 Crear Usuario"): guardar_cambio_google(sh, "CONFIG", "MANAGE_USER", [un, uc, "CREAR"]); recargar(); st.rerun()
+            with st.expander("👤 Gestión de Usuarios"):
+                un = st.text_input("Nombre de Usuario").upper().strip()
+                uc = st.text_input("Clave", type="password")
+                if st.button("🚀 Crear Usuario"):
+                    guardar_cambio_google(sh, "CONFIG", "MANAGE_USER", [un, uc, "CREAR"])
+                    recargar(); st.rerun()
+                st.divider()
+                u_sel = st.selectbox("Seleccionar para modificar/borrar:", [u for u in config["usuarios"].keys() if u != "ADMIN"])
+                nueva_cl = st.text_input("Nueva Clave (Modificar)", type="password")
+                c1, c2 = st.columns(2)
+                if c1.button("💾 Modificar"):
+                    guardar_cambio_google(sh, "CONFIG", "MANAGE_USER", [u_sel, nueva_cl, "MODIFICAR"])
+                    recargar(); st.rerun()
+                if c2.button("🗑️ Eliminar"):
+                    guardar_cambio_google(sh, "CONFIG", "MANAGE_USER", [u_sel, "", "ELIMINAR"])
+                    recargar(); st.rerun()
+
             with st.expander("🏷️ Marcas"):
                 m_s = st.selectbox("Marca:", config["marcas"])
                 if st.button("🗑️ Borrar Marca"): guardar_cambio_google(sh, "CONFIG", "DEL_CONFIG", [m_s, 4]); recargar(); st.rerun()
                 nm = st.text_input("Añadir Marca").upper().strip()
                 if st.button("➕ Añadir Marca"): guardar_cambio_google(sh, "CONFIG", "ADD_CONFIG", [nm, 4]); recargar(); st.rerun()
-            with st.expander("🏘️ Bodegas"):
-                b_s = st.selectbox("Bodega:", config["depositos"])
-                n_nb = st.text_input("Nuevo nombre:").upper().strip()
-                if st.button("📝 Renombrar Bodega"): guardar_cambio_google(sh, "CONFIG", "RENAME_CONFIG", [b_s, n_nb, 3]); recargar(); st.rerun()
+
+            with st.expander("🏘️ Gestión de Bodegas"):
+                b_sel = st.selectbox("Bodega Actual:", config["depositos"])
+                n_nom = st.text_input("Nuevo nombre de bodega:").upper().strip()
+                if st.button("📝 Renombrar Bodega"):
+                    guardar_cambio_google(sh, "CONFIG", "RENAME_CONFIG", [b_sel, n_nom, 3]); recargar(); st.rerun()
+                st.divider()
+                nb_nueva = st.text_input("Nombre de Bodega Nueva").upper().strip()
+                if st.button("➕ Crear Bodega"):
+                    guardar_cambio_google(sh, "CONFIG", "ADD_CONFIG", [nb_nueva, 3]); recargar(); st.rerun()
 
             if st.button("📜 HISTORIAL", use_container_width=True): st.session_state.ver_historial = True; st.rerun()
             st.divider()
