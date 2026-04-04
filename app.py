@@ -10,21 +10,43 @@ import io
 NOMBRE_EXCEL = "DB_BODEGA_SISTEMA"
 SCOPE = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
 
-def conectar_google():
+def cargar_datos_google():
     try:
-        if "gcp_service_account" in st.secrets:
-            creds_dict = dict(st.secrets["gcp_service_account"])
-            # Esto convierte los \n del texto en saltos de línea reales
-            creds_dict["private_key"] = creds_dict["private_key"].replace("\\n", "\n")
-            creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, SCOPE)
-        else:
-            creds = ServiceAccountCredentials.from_json_keyfile_name('creds.json', SCOPE)
-            
-        return gspread.authorize(creds).open(NOMBRE_EXCEL)
-    except Exception as e:
-        st.error(f"❌ Error de conexión: {e}")
-        return None
+        sh = conectar_google()
+        if not sh: 
+            st.error("No se pudo conectar con el archivo de Google Sheets.")
+            return {}, {}, [], None
         
+        # 1. Cargar Inventario (Pestaña INVENTARIO)
+        ws_inv = sh.worksheet("INVENTARIO")
+        datos_inv = ws_inv.get_all_records()
+        inv = {f"{r['DEPOSITO']}_{r['CODIGO']}": {"marca": r['MARCA'], "deposito": r['DEPOSITO'], "stock": int(r['STOCK'])} for r in datos_inv if r.get('CODIGO')}
+        
+        # 2. Cargar Configuración (Pestaña CONFIG)
+        ws_conf = sh.worksheet("CONFIG")
+        datos_conf = ws_conf.get_all_records()
+        
+        # Si la configuración está vacía, ponemos valores por defecto para que no salga pantalla blanca
+        if not datos_conf:
+            config = {"usuarios": {"ADMIN": "123"}, "depositos": ["BODEGA 1"], "marcas": ["GENERAL"]}
+        else:
+            df_conf = pd.DataFrame(datos_conf)
+            config = {
+                "usuarios": {str(r['USUARIO']): str(r['CLAVE']) for _, r in df_conf.iterrows() if r.get('USUARIO')},
+                "depositos": [x for x in df_conf['DEPOSITOS'].unique() if x] if 'DEPOSITOS' in df_conf else ["BODEGA 1"],
+                "marcas": [x for x in df_conf['MARCAS'].unique() if x] if 'MARCAS' in df_conf else ["GENERAL"]
+            }
+        
+        # 3. Cargar Logs (Pestaña LOGS)
+        ws_log = sh.worksheet("LOGS")
+        logs = ws_log.get_all_records()[-50:]
+        logs.reverse()
+        
+        return inv, config, logs, sh
+    except Exception as e:
+        st.error(f"Error procesando los datos del Excel: {e}")
+        # Retornamos valores vacíos para evitar la pantalla blanca
+        return {}, {"usuarios": {"ADMIN": "123"}, "depositos": [], "marcas": []}, [], None        
 # --- FUNCIONES DE BASE DE DATOS (NUEVAS PARA GOOGLE) ---
 def cargar_datos_google():
     sh = conectar_google()
