@@ -57,7 +57,49 @@ def generar_excel_reporte(datos_inv):
     return output.getvalue()
 
 def guardar_cambio_google(sh, tab, accion, datos):
+    def guardar_cambio_google(sh, tab, accion, datos):
     try:
+        ws = sh.worksheet(tab)
+        if accion == "UPDATE_STOCK":
+            # 1. Extraemos el código limpio (ej: YJT-8047)
+            id_combinado = datos[0] # Trae "BODEGA_CODIGO"
+            codigo_solo = str(id_combinado.split("_")[-1]).strip()
+            bodega_sola = str(id_combinado.split("_")[0]).strip()
+            nuevo_stock = datos[1]
+
+            # 2. Obtenemos todos los datos para buscar la fila exacta
+            # Esto evita que find() se pierda si el código se repite en otra parte
+            lista_filas = ws.get_all_values()
+            
+            fila_encontrada = None
+            for i, fila in enumerate(lista_filas):
+                # fila[1] es BODEGA, fila[2] es CODIGO (ajusta si tus columnas son distintas)
+                # Buscamos que coincida la BODEGA y el CÓDIGO exactamente
+                if str(fila[1]).strip() == bodega_sola and str(fila[2]).strip() == codigo_solo:
+                    fila_encontrada = i + 1 # +1 porque Google Sheets empieza en 1
+                    break
+            
+            if fila_encontrada:
+                # Actualizamos la columna 4 (STOCK)
+                ws.update_cell(fila_encontrada, 4, nuevo_stock)
+            else:
+                st.error(f"❌ No encontré {codigo_solo} en la bodega {bodega_sola}. Revisa el Excel.")
+
+        elif accion == "ADD_LOG":
+            hora = (datetime.now() - timedelta(hours=4)).strftime("%d/%m/%Y %H:%M")
+            ws.append_row([hora] + datos)
+            
+        elif accion == "NUEVO_ITEM":
+            ws.append_row(datos)
+            
+        elif accion == "BORRAR_ITEM":
+            codigo_a_borrar = str(datos[0].split("_")[-1]).strip()
+            celda = ws.find(codigo_a_borrar)
+            if celda:
+                ws.delete_rows(celda.row)
+                
+    except Exception as e:
+        st.error(f"⚠️ Error de conexión con Google Sheets: {e}"):
         ws = sh.worksheet(tab)
         if accion == "UPDATE_STOCK":
             celda = ws.find(str(datos[0].split("_")[-1]))
