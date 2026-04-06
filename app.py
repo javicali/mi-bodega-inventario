@@ -65,18 +65,22 @@ def guardar_cambio_google(sh, tab, accion, datos):
             bodega_sola = str(id_combinado.split("_")[0]).strip()
             nuevo_stock = datos[1]
 
-            lista_filas = ws.get_all_values()
-            fila_encontrada = None
-            for i, fila in enumerate(lista_filas):
-                if len(fila) > 2:
-                    if str(fila[1]).strip() == bodega_sola and str(fila[2]).strip() == codigo_solo:
-                        fila_encontrada = i + 1 
-                        break
+            # LEER TODA LA HOJA PARA BUSCAR POR ENCABEZADOS
+            data = ws.get_all_records()
+            fila_idx = None
+            for i, row in enumerate(data):
+                # Buscamos la fila que coincida en DEPOSITO y CODIGO
+                if str(row.get('DEPOSITO')).strip() == bodega_sola and str(row.get('CODIGO')).strip() == codigo_solo:
+                    fila_idx = i + 2 # +2 porque get_all_records no cuenta cabecera y Google empieza en 1
+                    break
             
-            if fila_encontrada:
-                ws.update_cell(fila_encontrada, 4, nuevo_stock)
+            if fila_idx:
+                # Buscamos en qué columna está el "STOCK" dinámicamente
+                headers = ws.row_values(1)
+                col_stock = headers.index("STOCK") + 1
+                ws.update_cell(fila_idx, col_stock, nuevo_stock)
             else:
-                st.error(f"❌ No encontré {codigo_solo} en {bodega_sola} en el Excel.")
+                st.error(f"❌ No encontré {codigo_solo} en {bodega_sola}. Verifica que los nombres en el Excel coincidan exactamente.")
 
         elif accion == "ADD_LOG":
             hora = (datetime.now() - timedelta(hours=4)).strftime("%d/%m/%Y %H:%M")
@@ -104,7 +108,7 @@ def guardar_cambio_google(sh, tab, accion, datos):
                 celda = ws.find(datos[0])
                 if celda and celda.col == 1: ws.update_cell(celda.row, 2, datos[1])
     except Exception as e:
-        st.error(f"⚠️ Error de conexión: {e}")
+        st.error(f"⚠️ Error: {e}")
 
 def txt_cajas(n): return f"{n} caja" if n == 1 else f"{n} cajas"
 
@@ -212,7 +216,7 @@ else:
         bus_e = st.text_input("🎯 Código:", key=f"in_pan_{st.session_state.reset_pan}", label_visibility="collapsed").upper().strip()
     with col_btn_p: 
         btn_lupa_p = st.button("🔍", key="btn_lupa_pan", use_container_width=True)
-    with col_clr_p:
+    with col_clear: # Se añadió la lógica del botón limpiar aquí también
         if bus_e:
             if st.button("🧹", key="btn_clear_pan", use_container_width=True):
                 st.session_state.reset_pan += 1; st.rerun()
