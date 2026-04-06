@@ -28,16 +28,19 @@ def cargar_datos_google():
         if not sh: return {}, def_config, [], None
         ws_inv = sh.worksheet("INVENTARIO")
         datos_inv = ws_inv.get_all_records()
-        inv = {f"{r['DEPOSITO']}_{r['CODIGO']}": {"marca": r['MARCA'], "deposito": r['DEPOSITO'], "stock": int(r['STOCK'])} 
+        inv = {f"{str(r['DEPOSITO']).strip().upper()}_{str(r['CODIGO']).strip().upper()}": {"marca": r['MARCA'], "deposito": r['DEPOSITO'], "stock": int(r['STOCK'])} 
                for r in datos_inv if str(r.get('CODIGO')).strip()}
+        
         ws_conf = sh.worksheet("CONFIG")
         df_conf = pd.DataFrame(ws_conf.get_all_records())
         list_users = {str(r['USUARIO']).strip(): str(r['CLAVE']).strip() for _, r in df_conf.iterrows() if str(r.get('USUARIO')).strip()}
-        list_depos = [x for x in df_conf['DEPOSITOS'].unique() if str(x).strip()] if 'DEPOSITOS' in df_conf else []
-        list_marcas = [x for x in df_conf['MARCAS'].unique() if str(x).strip()] if 'MARCAS' in df_conf else []
+        list_depos = [str(x).strip().upper() for x in df_conf['DEPOSITOS'].unique() if str(x).strip()] if 'DEPOSITOS' in df_conf else []
+        list_marcas = [str(x).strip().upper() for x in df_conf['MARCAS'].unique() if str(x).strip()] if 'MARCAS' in df_conf else []
+        
         config = {"usuarios": list_users if list_users else def_config["usuarios"],
                   "depositos": list_depos if list_depos else def_config["depositos"],
                   "marcas": list_marcas if list_marcas else def_config["marcas"]}
+        
         ws_log = sh.worksheet("LOGS")
         logs_data = ws_log.get_all_records()
         return inv, config, logs_data, sh
@@ -60,33 +63,47 @@ def guardar_cambio_google(sh, tab, accion, datos):
     try:
         ws = sh.worksheet(tab)
         if accion == "UPDATE_STOCK":
-            id_combinado = datos[0] 
-            codigo_solo = str(id_combinado.split("_")[-1]).strip()
-            bodega_sola = str(id_combinado.split("_")[0]).strip()
+            id_comb = datos[0]
+            cod_buscado = str(id_comb.split("_")[-1]).strip().upper()
+            bod_buscada = str(id_comb.split("_")[0]).strip().upper()
             nuevo_stock = datos[1]
 
-            data = ws.get_all_records()
-            fila_idx = None
-            for i, row in enumerate(data):
-                if str(row.get('DEPOSITO')).strip() == bodega_sola and str(row.get('CODIGO')).strip() == codigo_solo:
-                    fila_idx = i + 2 
+            # Obtenemos todo el contenido de la hoja
+            todo = ws.get_all_values()
+            headers = [h.strip().upper() for h in todo[0]]
+            
+            try:
+                idx_dep = headers.index("DEPOSITO")
+                idx_cod = headers.index("CODIGO")
+                idx_stk = headers.index("STOCK")
+            except:
+                st.error("❌ Columnas no encontradas en Excel")
+                return
+
+            # Buscamos la fila ignorando mayúsculas/minúsculas y espacios
+            fila_real = None
+            for i, fila in enumerate(todo[1:], start=2):
+                if str(fila[idx_dep]).strip().upper() == bod_buscada and \
+                   str(fila[idx_cod]).strip().upper() == cod_buscado:
+                    fila_real = i
                     break
             
-            if fila_idx:
-                headers = ws.row_values(1)
-                col_stock = headers.index("STOCK") + 1
-                ws.update_cell(fila_idx, col_stock, nuevo_stock)
+            if fila_real:
+                ws.update_cell(fila_real, idx_stk + 1, nuevo_stock)
             else:
-                st.error(f"❌ No encontré {codigo_solo} en {bodega_sola}.")
+                st.error(f"❌ No se pudo localizar la fila de {cod_buscado} en {bod_buscada}")
 
         elif accion == "ADD_LOG":
             hora = (datetime.now() - timedelta(hours=4)).strftime("%d/%m/%Y %H:%M")
             ws.append_row([hora] + datos)
         elif accion == "NUEVO_ITEM": ws.append_row(datos)
         elif accion == "BORRAR_ITEM":
-            codigo_a_borrar = str(datos[0].split("_")[-1]).strip()
-            celda = ws.find(codigo_a_borrar)
-            if celda: ws.delete_rows(celda.row)
+            cod_del = str(datos[0].split("_")[-1]).strip().upper()
+            todo = ws.get_all_values()
+            for i, fila in enumerate(todo[1:], start=2):
+                if str(fila[2]).strip().upper() == cod_del:
+                    ws.delete_rows(i)
+                    break
         elif accion == "ADD_CONFIG":
             col_vals = ws.col_values(datos[1])
             ws.update_cell(len(col_vals) + 1, datos[1], datos[0])
@@ -196,7 +213,7 @@ elif not st.session_state.get('modo_panel', False):
     if st.session_state.get('ver_menu_marcas', False):
         d_v = st.selectbox("Bodega:", config["depositos"])
         orden = st.selectbox("Ordenar:", ["A-Z", "Mayor Stock", "Menor Stock"])
-        final = [{'codigo': k.split('_')[-1], 'marca': v['marca'], 'stock': v['stock']} for k, v in inv.items() if v['deposito'] == d_v and v['stock'] > 0]
+        final = [{'codigo': k.split('_')[-1], 'marca': v['marca'], 'stock': v['stock']} for k, v in inv.items() if v['deposito'].upper() == d_v.upper() and v['stock'] > 0]
         if orden == "A-Z": final.sort(key=lambda x: x['codigo'])
         elif orden == "Mayor Stock": final.sort(key=lambda x: x['stock'], reverse=True)
         for item in final: st.write(f"📦 **{item['codigo']}** | {item['marca']} | **{txt_cajas(item['stock'])}**")
@@ -208,7 +225,6 @@ else:
     with c2:
         st.header("Entrada / Salida 📦")
 
-    # Aquí corregí las columnas para evitar el NameError
     col_in_p, col_btn_p, col_clr_p = st.columns([4, 1, 1])
     with col_in_p: 
         bus_e = st.text_input("🎯 Código:", key=f"in_pan_{st.session_state.reset_pan}", label_visibility="collapsed").upper().strip()
@@ -231,7 +247,7 @@ else:
     tabs_e = st.tabs(config["marcas"] if config["marcas"] else ["GENERAL"])
     for i, m_p in enumerate(config["marcas"]):
         with tabs_e[i]:
-            for k, v in sorted({k: v for k, v in inv.items() if v['marca']==m_p and v['deposito']==dep_p}.items()):
+            for k, v in sorted({k: v for k, v in inv.items() if v['marca'].upper()==m_p.upper() and v['deposito'].upper()==dep_p.upper()}.items()):
                 mostrar_tarjeta(k, v, f"pan_{i}")
 
 # --- SIDEBAR ---
