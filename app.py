@@ -57,59 +57,34 @@ def generar_excel_reporte(datos_inv):
     return output.getvalue()
 
 def guardar_cambio_google(sh, tab, accion, datos):
-    def guardar_cambio_google(sh, tab, accion, datos):
     try:
         ws = sh.worksheet(tab)
         if accion == "UPDATE_STOCK":
-            # 1. Extraemos el código limpio (ej: YJT-8047)
-            id_combinado = datos[0] # Trae "BODEGA_CODIGO"
+            id_combinado = datos[0] 
             codigo_solo = str(id_combinado.split("_")[-1]).strip()
             bodega_sola = str(id_combinado.split("_")[0]).strip()
             nuevo_stock = datos[1]
 
-            # 2. Obtenemos todos los datos para buscar la fila exacta
-            # Esto evita que find() se pierda si el código se repite en otra parte
             lista_filas = ws.get_all_values()
-            
             fila_encontrada = None
             for i, fila in enumerate(lista_filas):
-                # fila[1] es BODEGA, fila[2] es CODIGO (ajusta si tus columnas son distintas)
-                # Buscamos que coincida la BODEGA y el CÓDIGO exactamente
-                if str(fila[1]).strip() == bodega_sola and str(fila[2]).strip() == codigo_solo:
-                    fila_encontrada = i + 1 # +1 porque Google Sheets empieza en 1
-                    break
+                if len(fila) > 2:
+                    if str(fila[1]).strip() == bodega_sola and str(fila[2]).strip() == codigo_solo:
+                        fila_encontrada = i + 1 
+                        break
             
             if fila_encontrada:
-                # Actualizamos la columna 4 (STOCK)
                 ws.update_cell(fila_encontrada, 4, nuevo_stock)
             else:
-                st.error(f"❌ No encontré {codigo_solo} en la bodega {bodega_sola}. Revisa el Excel.")
+                st.error(f"❌ No encontré {codigo_solo} en {bodega_sola} en el Excel.")
 
-        elif accion == "ADD_LOG":
-            hora = (datetime.now() - timedelta(hours=4)).strftime("%d/%m/%Y %H:%M")
-            ws.append_row([hora] + datos)
-            
-        elif accion == "NUEVO_ITEM":
-            ws.append_row(datos)
-            
-        elif accion == "BORRAR_ITEM":
-            codigo_a_borrar = str(datos[0].split("_")[-1]).strip()
-            celda = ws.find(codigo_a_borrar)
-            if celda:
-                ws.delete_rows(celda.row)
-                
-    except Exception as e:
-        st.error(f"⚠️ Error de conexión con Google Sheets: {e}"):
-        ws = sh.worksheet(tab)
-        if accion == "UPDATE_STOCK":
-            celda = ws.find(str(datos[0].split("_")[-1]))
-            if celda: ws.update_cell(celda.row, 4, datos[1])
         elif accion == "ADD_LOG":
             hora = (datetime.now() - timedelta(hours=4)).strftime("%d/%m/%Y %H:%M")
             ws.append_row([hora] + datos)
         elif accion == "NUEVO_ITEM": ws.append_row(datos)
         elif accion == "BORRAR_ITEM":
-            celda = ws.find(str(datos[0].split("_")[-1]))
+            codigo_a_borrar = str(datos[0].split("_")[-1]).strip()
+            celda = ws.find(codigo_a_borrar)
             if celda: ws.delete_rows(celda.row)
         elif accion == "ADD_CONFIG":
             col_vals = ws.col_values(datos[1])
@@ -128,7 +103,8 @@ def guardar_cambio_google(sh, tab, accion, datos):
             elif datos[2] == "MODIFICAR":
                 celda = ws.find(datos[0])
                 if celda and celda.col == 1: ws.update_cell(celda.row, 2, datos[1])
-    except: st.error("⚠️ Error de comunicación")
+    except Exception as e:
+        st.error(f"⚠️ Error de conexión: {e}")
 
 def txt_cajas(n): return f"{n} caja" if n == 1 else f"{n} cajas"
 
@@ -224,7 +200,6 @@ elif not st.session_state.get('modo_panel', False):
         elif orden == "Mayor Stock": final.sort(key=lambda x: x['stock'], reverse=True)
         for item in final: st.write(f"📦 **{item['codigo']}** | {item['marca']} | **{txt_cajas(item['stock'])}**")
 else:
-    # --- ENTRADA/SALIDA CON ICONO VOLVER ---
     c1, c2 = st.columns([1, 10])
     with c1:
         if st.button("🏠", help="Volver a Inicio"):
@@ -270,7 +245,6 @@ with st.sidebar:
             else: st.error("Error")
     else:
         st.write(f"👤 **{st.session_state.usuario_actual}**")
-        # Botón actualizado en Sidebar
         if st.button("📦 ENTRADA/SALIDA" if not st.session_state.get('modo_panel', False) else "🏠 INICIO", use_container_width=True):
             st.session_state.modo_panel = not st.session_state.get('modo_panel', False); st.rerun()
         
