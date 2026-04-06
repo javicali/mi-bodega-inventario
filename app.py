@@ -152,7 +152,8 @@ def mostrar_tarjeta(k, v, suf):
 st.title("🏢 Bodega Central")
 
 if st.session_state.get('ver_historial', False):
-    if st.button("⬅️ Volver"): st.session_state.ver_historial = False; st.rerun()
+    st.header("📜 Historial de Movimientos")
+    if st.button("⬅️ Volver al Inicio"): st.session_state.ver_historial = False; st.rerun()
     st.dataframe(pd.DataFrame(logs).iloc[::-1], use_container_width=True)
 elif not st.session_state.get('modo_panel', False):
     st.subheader("🔍 Consulta")
@@ -200,57 +201,77 @@ else:
 
 # --- SIDEBAR ---
 with st.sidebar:
+    st.header("🔐 Acceso")
     if not st.session_state.get('edit_mode', False):
         u, p = st.selectbox("Usuario", list(config["usuarios"].keys())), st.text_input("Clave", type="password")
         if st.button("🔓 Entrar"):
-            if config["usuarios"].get(u) == p: st.session_state.edit_mode, st.session_state.usuario_actual = True, u; st.rerun()
+            if config["usuarios"].get(u) == p: 
+                st.session_state.edit_mode, st.session_state.usuario_actual = True, u; st.rerun()
+            else: st.error("Clave incorrecta")
     else:
-        st.write(f"👤 **{st.session_state.usuario_actual}**")
-        if st.button("📦 ENTRADA/SALIDA" if not st.session_state.get('modo_panel', False) else "🏠 INICIO", use_container_width=True):
+        st.write(f"👤 Usuario: **{st.session_state.usuario_actual}**")
+        
+        # Botón para cambiar entre el Buscador y el Panel de Control
+        if st.button("📦 IR A ENTRADA/SALIDA" if not st.session_state.get('modo_panel', False) else "🏠 IR A BUSCADOR INICIAL", use_container_width=True):
             st.session_state.modo_panel = not st.session_state.get('modo_panel', False); st.rerun()
         
-        with st.expander("🆕 Nuevo Código"):
-            nma, nco, nbo = st.selectbox("Marca", config["marcas"]), st.text_input("Código").upper().strip(), st.selectbox("Bodega", config["depositos"])
-            if st.button("💾 Crear") and nco: 
-                guardar_cambio_google(sh, "INVENTARIO", "NUEVO_ITEM", [nma, nbo, nco, 0]); recargar(); st.rerun()
+        st.divider()
 
+        with st.expander("🆕 NUEVO CÓDIGO"):
+            nma = st.selectbox("Marca del producto", config["marcas"])
+            nco = st.text_input("Escribe el Código").upper().strip()
+            nbo = st.selectbox("Bodega donde estará", config["depositos"])
+            if st.button("💾 GUARDAR CÓDIGO", use_container_width=True) and nco: 
+                guardar_cambio_google(sh, "INVENTARIO", "NUEVO_ITEM", [nma, nbo, nco, 0])
+                st.toast("✅ Código creado exitosamente"); recargar(); st.rerun()
+
+        # --- SECCIÓN EXCLUSIVA PARA ADMIN ---
         if st.session_state.usuario_actual.upper() == "ADMIN":
-            with st.expander("👤 Usuarios"):
-                un_c, uc_c = st.text_input("Nuevo Usu"), st.text_input("Clave", type="password")
-                if st.button("🚀 Crear"):
+            st.divider()
+            st.subheader("⚙️ ADMINISTRACIÓN")
+            
+            # Botones directos de Historial y Reporte
+            if st.button("📜 VER HISTORIAL", use_container_width=True): 
+                st.session_state.ver_historial = True; st.rerun()
+            
+            st.download_button("📊 DESCARGAR EXCEL", generar_excel_reporte(inv), f"Reporte_{datetime.now().strftime('%d-%m')}.xlsx", use_container_width=True)
+
+            with st.expander("👤 GESTIÓN DE USUARIOS"):
+                un_c = st.text_input("Nuevo Usuario")
+                uc_c = st.text_input("Contraseña", type="password")
+                if st.button("🚀 Crear Usuario"):
                     guardar_cambio_google(sh, "CONFIG", "MANAGE_USER", [un_c, uc_c, "CREAR"]); recargar(); st.rerun()
                 st.divider()
-                u_sel = st.selectbox("Sel Usu:", [u for u in config["usuarios"].keys() if u != "ADMIN"])
-                nueva_pass = st.text_input("Nueva Clave", type="password")
+                u_sel = st.selectbox("Editar Usuario:", [u for u in config["usuarios"].keys() if u != "ADMIN"])
+                nueva_pass = st.text_input("Cambiar Contraseña", type="password")
                 c1, c2 = st.columns(2)
-                if c1.button("💾 Mod"):
+                if c1.button("💾 Modificar"):
                     guardar_cambio_google(sh, "CONFIG", "MANAGE_USER", [u_sel, nueva_pass, "MODIFICAR"]); recargar(); st.rerun()
-                if c2.button("🗑️ Elim"):
+                if c2.button("🗑️ Eliminar"):
                     guardar_cambio_google(sh, "CONFIG", "MANAGE_USER", [u_sel, "", "ELIMINAR"]); recargar(); st.rerun()
 
-            with st.expander("🏷️ Marcas"):
-                m_sel = st.selectbox("Marca:", config["marcas"])
-                if st.button("🗑️ Eliminar Marca"):
+            with st.expander("🏷️ GESTIÓN DE MARCAS"):
+                m_sel = st.selectbox("Seleccionar Marca:", config["marcas"])
+                if st.button("🗑️ Borrar esta Marca"):
                     guardar_cambio_google(sh, "CONFIG", "DEL_CONFIG", [m_sel, 4]); recargar(); st.rerun()
                 st.divider()
-                nm_nueva = st.text_input("Nueva Marca").upper().strip()
-                if st.button("➕ Añadir"):
+                nm_nueva = st.text_input("Nombre Nueva Marca").upper().strip()
+                if st.button("➕ Añadir Marca"):
                     guardar_cambio_google(sh, "CONFIG", "ADD_CONFIG", [nm_nueva, 4]); recargar(); st.rerun()
 
-            with st.expander("🏘️ Bodegas"):
-                b_sel = st.selectbox("Bodega:", config["depositos"])
-                n_nom_b = st.text_input("Nuevo Nombre").upper().strip()
+            with st.expander("🏘️ GESTIÓN DE BODEGAS"):
+                b_sel = st.selectbox("Seleccionar Bodega:", config["depositos"])
+                n_nom_b = st.text_input("Cambiar nombre a:").upper().strip()
                 c1b, c2b = st.columns(2)
-                if c1b.button("📝 Renom"):
+                if c1b.button("📝 Renombrar"):
                     guardar_cambio_google(sh, "CONFIG", "RENAME_CONFIG", [b_sel, n_nom_b, 3]); recargar(); st.rerun()
-                if c2b.button("🗑️ Elim"):
+                if c2b.button("🗑️ Eliminar"):
                     guardar_cambio_google(sh, "CONFIG", "DEL_CONFIG", [b_sel, 3]); recargar(); st.rerun()
                 st.divider()
-                nb_nueva = st.text_input("Bodega Nueva").upper().strip()
-                if st.button("➕ Crear"):
+                nb_nueva = st.text_input("Nombre Bodega Nueva").upper().strip()
+                if st.button("➕ Crear Bodega"):
                     guardar_cambio_google(sh, "CONFIG", "ADD_CONFIG", [nb_nueva, 3]); recargar(); st.rerun()
 
-            if st.button("📜 HISTORIAL", use_container_width=True): st.session_state.ver_historial = True; st.rerun()
-            st.download_button("📊 REPORTE EXCEL", generar_excel_reporte(inv), "Reporte.xlsx", use_container_width=True)
-
-        if st.button("🔒 Salir", use_container_width=True): st.session_state.edit_mode = False; st.rerun()
+        st.divider()
+        if st.button("🔒 CERRAR SESIÓN", use_container_width=True): 
+            st.session_state.edit_mode = False; st.rerun()
