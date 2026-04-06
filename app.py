@@ -122,7 +122,7 @@ inv, config, logs, sh = st.session_state.inv, st.session_state.config, st.sessio
 
 # --- DIALOGOS ---
 @st.dialog("Confirmar Movimiento")
-def confirmar_mov(k, v, cant, op, key_input):
+def confirmar_mov(k, v, cant, op):
     st.warning(f"¿Confirmas que {op} {txt_cajas(cant)} de {k.split('_')[-1]}?")
     c1, c2 = st.columns(2)
     if c1.button("SÍ, GUARDAR", use_container_width=True):
@@ -130,31 +130,25 @@ def confirmar_mov(k, v, cant, op, key_input):
         guardar_cambio_google(sh, "INVENTARIO", "UPDATE_STOCK", [k, nuevo])
         det = f"{txt_cajas(cant)} de {k.split('_')[-1]} {'a' if op == 'ENTRÓ' else 'de'} {k.split('_')[0]}"
         guardar_cambio_google(sh, "LOGS", "ADD_LOG", [st.session_state.usuario_actual, op, det])
-        
-        # --- CRUCIAL: RESETEAR EL INPUT A 0 ---
-        if key_input in st.session_state:
-            st.session_state[key_input] = 0
-            
+        if f"n_val_{k}" in st.session_state: st.session_state[f"n_val_{k}"] = 0
         st.toast(f"✅ Registrado!"); recargar(); st.rerun()
     if c2.button("CANCELAR", use_container_width=True): st.rerun()
 
 def mostrar_tarjeta(k, v, suf):
-    key_input = f"n_val_{suf}_{k}"
+    key_input = f"n_val_{k}"
     if key_input not in st.session_state: st.session_state[key_input] = 0
-    
     with st.container(border=True):
         c1, c2, c3 = st.columns([2, 1, 3.5]) 
         c1.markdown(f"**{k.split('_')[-1]}**\n<small>{v['marca']} | {v['deposito']}</small>", unsafe_allow_html=True)
         c2.write(f"📦 {v['stock']}")
         with c3:
-            # Vinculamos el input al session_state
             cant = st.number_input("n", min_value=0, key=key_input, label_visibility="collapsed")
             cols_btn = st.columns([1, 1, 0.5]) 
             if cols_btn[0].button("ENTRÓ", key=f"btn_a_{suf}_{k}", use_container_width=True):
-                if cant > 0: confirmar_mov(k, v, cant, "ENTRÓ", key_input)
+                if cant > 0: confirmar_mov(k, v, cant, "ENTRÓ")
                 else: st.error("Escribe cantidad")
             if cols_btn[1].button("SALIÓ", key=f"btn_s_{suf}_{k}", disabled=v['stock']<cant or cant==0, use_container_width=True):
-                confirmar_mov(k, v, cant, "SALIÓ", key_input)
+                confirmar_mov(k, v, cant, "SALIÓ")
 
 # --- 3. INTERFAZ ---
 st.title("🏢 Bodega Central")
