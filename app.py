@@ -65,22 +65,19 @@ def guardar_cambio_google(sh, tab, accion, datos):
             bodega_sola = str(id_combinado.split("_")[0]).strip()
             nuevo_stock = datos[1]
 
-            # LEER TODA LA HOJA PARA BUSCAR POR ENCABEZADOS
             data = ws.get_all_records()
             fila_idx = None
             for i, row in enumerate(data):
-                # Buscamos la fila que coincida en DEPOSITO y CODIGO
                 if str(row.get('DEPOSITO')).strip() == bodega_sola and str(row.get('CODIGO')).strip() == codigo_solo:
-                    fila_idx = i + 2 # +2 porque get_all_records no cuenta cabecera y Google empieza en 1
+                    fila_idx = i + 2 
                     break
             
             if fila_idx:
-                # Buscamos en qué columna está el "STOCK" dinámicamente
                 headers = ws.row_values(1)
                 col_stock = headers.index("STOCK") + 1
                 ws.update_cell(fila_idx, col_stock, nuevo_stock)
             else:
-                st.error(f"❌ No encontré {codigo_solo} en {bodega_sola}. Verifica que los nombres en el Excel coincidan exactamente.")
+                st.error(f"❌ No encontré {codigo_solo} en {bodega_sola}.")
 
         elif accion == "ADD_LOG":
             hora = (datetime.now() - timedelta(hours=4)).strftime("%d/%m/%Y %H:%M")
@@ -211,12 +208,13 @@ else:
     with c2:
         st.header("Entrada / Salida 📦")
 
+    # Aquí corregí las columnas para evitar el NameError
     col_in_p, col_btn_p, col_clr_p = st.columns([4, 1, 1])
     with col_in_p: 
         bus_e = st.text_input("🎯 Código:", key=f"in_pan_{st.session_state.reset_pan}", label_visibility="collapsed").upper().strip()
     with col_btn_p: 
         btn_lupa_p = st.button("🔍", key="btn_lupa_pan", use_container_width=True)
-    with col_clear: # Se añadió la lógica del botón limpiar aquí también
+    with col_clr_p:
         if bus_e:
             if st.button("🧹", key="btn_clear_pan", use_container_width=True):
                 st.session_state.reset_pan += 1; st.rerun()
